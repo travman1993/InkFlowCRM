@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import logo from '../assets/logo.png';
 import { 
   Calendar, 
   Users, 
@@ -100,9 +101,9 @@ function Landing() {
   ];
 
   const roadmap = [
-    { phase: 'Q2 2026', items: ['Mobile app (iOS & Android)', 'SMS reminders', 'Digital consent forms'] },
-    { phase: 'Q3 2026', items: ['Client self-booking portal', 'Google Calendar sync', 'Inventory tracking'] },
-    { phase: 'Q4 2026', items: ['AI design suggestions', 'Payment processing', 'Review system'] },
+    { phase: 'Late 2026', items: ['Mobile app (iOS & Android)', 'SMS reminders', 'Digital consent forms'] },
+    { phase: '2027', items: ['Client self-booking portal', 'Google Calendar sync', 'Inventory tracking'] },
+    { phase: '2027+', items: ['AI design suggestions', 'Payment processing', 'Review system'] },
   ];
 
   return (
@@ -112,9 +113,8 @@ function Landing() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             {/* Logo */}
-            <Link to="/" className="flex items-center space-x-2">
-              <Sparkles className="w-8 h-8 text-accent-primary" />
-              <span className="text-xl font-bold">InkFlowCRM</span>
+            <Link to="/" className="flex items-center">
+              <img src={logo} alt="InkFlowCRM" className="h-8 md:h-10" />
             </Link>
 
             {/* Desktop Navigation */}
@@ -426,51 +426,50 @@ function Landing() {
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-border-primary py-8 md:py-12 px-4">
-        <div className="max-w-7xl mx-auto">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-8 mb-6 md:mb-8">
-            <div className="col-span-2 md:col-span-1">
-              <div className="flex items-center space-x-2 mb-4">
-                <Sparkles className="w-5 h-5 md:w-6 md:h-6 text-accent-primary" />
-                <span className="font-bold text-sm md:text-base">InkFlowCRM</span>
-              </div>
-              <p className="text-xs md:text-sm text-text-secondary">
-                The business operating system for tattoo artists and studios.
-              </p>
-            </div>
-            
-            <div>
-              <h4 className="text-sm md:text-base font-semibold mb-3 md:mb-4">Product</h4>
-              <ul className="space-y-2 text-xs md:text-sm text-text-secondary">
-                <li><a href="#features" className="hover:text-text-primary transition">Features</a></li>
-                <li><a href="#pricing" className="hover:text-text-primary transition">Pricing</a></li>
-                <li><a href="#roadmap" className="hover:text-text-primary transition">Roadmap</a></li>
-              </ul>
-            </div>
-            
-            <div>
-              <h4 className="text-sm md:text-base font-semibold mb-3 md:mb-4">Company</h4>
-              <ul className="space-y-2 text-xs md:text-sm text-text-secondary">
-                <li><a href="#" className="hover:text-text-primary transition">About</a></li>
-                <li><a href="#" className="hover:text-text-primary transition">Blog</a></li>
-                <li><a href="#" className="hover:text-text-primary transition">Contact</a></li>
-              </ul>
-            </div>
-            
-            <div>
-              <h4 className="text-sm md:text-base font-semibold mb-3 md:mb-4">Legal</h4>
-              <ul className="space-y-2 text-xs md:text-sm text-text-secondary">
-                <li><a href="#" className="hover:text-text-primary transition">Privacy</a></li>
-                <li><a href="#" className="hover:text-text-primary transition">Terms</a></li>
-              </ul>
-            </div>
-          </div>
-          
-          <div className="border-t border-border-primary pt-6 md:pt-8 text-center text-xs md:text-sm text-text-tertiary">
-            <p>© 2026 InkFlowCRM. All rights reserved.</p>
-          </div>
-        </div>
-      </footer>
+<footer className="border-t border-border-primary py-8 md:py-12 px-4">
+  <div className="max-w-7xl mx-auto">
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-8 mb-6 md:mb-8">
+      <div className="col-span-2 md:col-span-1">
+      <div className="mb-4">
+        <img src={logo} alt="InkFlowCRM" className="h-6 md:h-8" />
+      </div>
+        <p className="text-xs md:text-sm text-text-secondary">
+          The business operating system for tattoo artists and studios.
+        </p>
+      </div>
+      
+      <div>
+        <h4 className="text-sm md:text-base font-semibold mb-3 md:mb-4">Product</h4>
+        <ul className="space-y-2 text-xs md:text-sm text-text-secondary">
+          <li><a href="#features" className="hover:text-text-primary transition">Features</a></li>
+          <li><a href="#pricing" className="hover:text-text-primary transition">Pricing</a></li>
+          <li><a href="#roadmap" className="hover:text-text-primary transition">Roadmap</a></li>
+        </ul>
+      </div>
+      
+      <div>
+        <h4 className="text-sm md:text-base font-semibold mb-3 md:mb-4">Company</h4>
+        <ul className="space-y-2 text-xs md:text-sm text-text-secondary">
+          <li><Link to="/about" className="hover:text-text-primary transition">About</Link></li>
+          <li><Link to="/blog" className="hover:text-text-primary transition">Blog</Link></li>
+          <li><Link to="/contact" className="hover:text-text-primary transition">Contact</Link></li>
+        </ul>
+      </div>
+      
+      <div>
+        <h4 className="text-sm md:text-base font-semibold mb-3 md:mb-4">Legal</h4>
+        <ul className="space-y-2 text-xs md:text-sm text-text-secondary">
+          <li><Link to="/privacy" className="hover:text-text-primary transition">Privacy</Link></li>
+          <li><Link to="/terms" className="hover:text-text-primary transition">Terms</Link></li>
+        </ul>
+      </div>
+    </div>
+    
+    <div className="border-t border-border-primary pt-6 md:pt-8 text-center text-xs md:text-sm text-text-tertiary">
+      <p>© 2026 InkFlowCRM. All rights reserved.</p>
+    </div>
+  </div>
+</footer>
     </div>
   );
 }

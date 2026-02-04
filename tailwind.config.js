@@ -7,30 +7,26 @@ export default {
     theme: {
       extend: {
         colors: {
-          // InkFlow custom dark theme colors
           bg: {
-            primary: '#0a0a0a',      // Pure black background
-            secondary: '#1a1a1a',    // Elevated surfaces
-            tertiary: '#2a2a2a',     // Card backgrounds
+            primary: '#0a0a0a',
+            secondary: '#1a1a1a',
+            tertiary: '#2a2a2a',
           },
           text: {
-            primary: '#ffffff',      // Primary text
-            secondary: '#a3a3a3',    // Secondary text
-            tertiary: '#737373',     // Disabled/muted text
+            primary: '#ffffff',
+            secondary: '#a3a3a3',
+            tertiary: '#737373',
           },
           accent: {
-            primary: '#3b82f6',      // Blue - primary actions
-            success: '#10b981',      // Green - success states
-            warning: '#f59e0b',      // Amber - warnings
-            danger: '#ef4444',       // Red - destructive actions
+            primary: '#14b8a6',      // Teal - primary actions
+            success: '#10b981',
+            warning: '#f59e0b',
+            danger: '#ef4444',
           },
           border: {
-            primary: '#333333',      // Default borders
-            focus: '#3b82f6',        // Focus states
+            primary: '#333333',
+            focus: '#14b8a6',        // Focus states
           }
-        },
-        fontFamily: {
-          sans: ['Inter', 'system-ui', 'sans-serif'],
         },
       },
     },
