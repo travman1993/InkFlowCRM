@@ -2,6 +2,10 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Landing from './pages/Landing';
 import Dashboard from './pages/Dashboard';
 import StudioDashboard from './pages/StudioDashboard';
+import Clients from './pages/Clients';
+import ClientDetail from './pages/ClientDetail';
+import Analytics from './pages/Analytics';
+import Settings from './pages/Settings';
 import About from './pages/About';
 import Blog from './pages/Blog';
 import Contact from './pages/Contact';
@@ -29,6 +33,10 @@ function App() {
         {/* Main pages */}
         <Route path="/" element={<Landing />} />
         <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/clients" element={<Clients />} />
+        <Route path="/clients/:id" element={<ClientDetail />} />
+        <Route path="/analytics" element={<Analytics />} />
+        <Route path="/settings" element={<Settings />} />
         <Route path="/studio/dashboard" element={<StudioDashboard />} />
         <Route path="/about" element={<About />} />
         <Route path="/blog" element={<Blog />} />
