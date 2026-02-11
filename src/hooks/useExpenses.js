@@ -1,145 +1,206 @@
-import { useState } from 'react';
+import { useAppContext } from '../context/AppContext';
+import { supabase } from '../lib/supabase';
 
 export function useExpenses() {
-  const [expenses, setExpenses] = useState([
-    {
-      id: 1,
-      date: '2026-02-01',
-      category: 'Booth Rent',
-      amount: 800,
-      notes: 'February booth rent',
-      recurring: true, // This will auto-add each month
-      createdAt: '2026-02-01T10:00:00'
-    },
-    {
-      id: 2,
-      date: '2026-02-03',
-      category: 'Supplies',
-      amount: 150,
-      notes: 'Ink cartridges and needles',
-      recurring: false,
-      createdAt: '2026-02-03T14:30:00'
-    },
-    {
-      id: 3,
-      date: '2026-02-15',
-      category: 'Utilities',
-      amount: 120,
-      notes: 'Power bill - recurring monthly',
-      recurring: true,
-      createdAt: '2026-02-15T10:00:00'
-    },
-  ]);
+  const { state, dispatch, artistId } = useAppContext();
+  const { expenses, recurringTemplates } = state;
 
-  const [recurringTemplates, setRecurringTemplates] = useState([
-    {
-      id: 1,
-      category: 'Booth Rent',
-      amount: 800,
-      notes: 'Monthly booth rent',
-      enabled: true
-    },
-    {
-      id: 2,
-      category: 'Utilities',
-      amount: 120,
-      notes: 'Power/Water bill',
-      enabled: true
-    },
-  ]);
+  const addExpense = async (expense) => {
+    const { data, error } = await supabase
+      .from('expenses')
+      .insert({
+        artist_id: artistId,
+        date: expense.date,
+        category: expense.category,
+        amount: expense.amount,
+        notes: expense.notes || '',
+        recurring: expense.recurring || false,
+      })
+      .select()
+      .single();
 
-  // Add expense
-  const addExpense = (expense) => {
-    const newExpense = {
-      ...expense,
-      id: Date.now(),
-      createdAt: new Date().toISOString()
-    };
-    setExpenses([...expenses, newExpense]);
-  };
-
-  // Add recurring template
-  const addRecurringTemplate = (template) => {
-    const newTemplate = {
-      ...template,
-      id: Date.now(),
-      enabled: true
-    };
-    setRecurringTemplates([...recurringTemplates, newTemplate]);
-  };
-
-  // Update recurring template
-  const updateRecurringTemplate = (id, updatedData) => {
-    setRecurringTemplates(recurringTemplates.map(template =>
-      template.id === id ? { ...template, ...updatedData } : template
-    ));
-  };
-
-  // Delete recurring template
-  const deleteRecurringTemplate = (id) => {
-    setRecurringTemplates(recurringTemplates.filter(template => template.id !== id));
-  };
-
-  // Apply recurring expenses for a new month
-  const applyRecurringExpenses = (year, month) => {
-    const firstDayOfMonth = new Date(year, month - 1, 1);
-    const dateStr = firstDayOfMonth.toISOString().split('T')[0];
-
-    // Check if recurring expenses already applied this month
-    const alreadyApplied = expenses.some(e => 
-      e.date.startsWith(`${year}-${String(month).padStart(2, '0')}`) && e.recurring
-    );
-
-    if (!alreadyApplied) {
-      const newExpenses = recurringTemplates
-        .filter(t => t.enabled)
-        .map(template => ({
-          id: Date.now() + Math.random(),
-          date: dateStr,
-          category: template.category,
-          amount: template.amount,
-          notes: template.notes,
-          recurring: true,
-          createdAt: new Date().toISOString()
-        }));
-
-      setExpenses([...expenses, ...newExpenses]);
+    if (error) {
+      console.error('Error adding expense:', error);
+      return null;
     }
+
+    const mapped = {
+      id: data.id,
+      date: data.date,
+      category: data.category,
+      amount: parseFloat(data.amount),
+      notes: data.notes,
+      recurring: data.recurring,
+      createdAt: data.created_at,
+    };
+
+    dispatch({ type: 'ADD_EXPENSE', payload: mapped });
+    return mapped;
   };
 
-  // Update expense
-  const updateExpense = (id, updatedData) => {
-    setExpenses(expenses.map(expense =>
-      expense.id === id ? { ...expense, ...updatedData } : expense
-    ));
+  const updateExpense = async (id, updatedData) => {
+    const dbUpdate = {};
+    if (updatedData.date !== undefined) dbUpdate.date = updatedData.date;
+    if (updatedData.category !== undefined) dbUpdate.category = updatedData.category;
+    if (updatedData.amount !== undefined) dbUpdate.amount = updatedData.amount;
+    if (updatedData.notes !== undefined) dbUpdate.notes = updatedData.notes;
+    if (updatedData.recurring !== undefined) dbUpdate.recurring = updatedData.recurring;
+
+    const { error } = await supabase
+      .from('expenses')
+      .update(dbUpdate)
+      .eq('id', id);
+
+    if (error) {
+      console.error('Error updating expense:', error);
+      return;
+    }
+
+    dispatch({ type: 'UPDATE_EXPENSE', payload: { id, data: updatedData } });
   };
 
-  // Delete expense
-  const deleteExpense = (id) => {
-    setExpenses(expenses.filter(expense => expense.id !== id));
+  const deleteExpense = async (id) => {
+    const { error } = await supabase
+      .from('expenses')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      console.error('Error deleting expense:', error);
+      return;
+    }
+
+    dispatch({ type: 'DELETE_EXPENSE', payload: id });
   };
 
-  // Get expenses by date range
+  // ---------- Recurring Templates ----------
+
+  const addRecurringTemplate = async (template) => {
+    const { data, error } = await supabase
+      .from('recurring_templates')
+      .insert({
+        artist_id: artistId,
+        category: template.category,
+        amount: template.amount,
+        notes: template.notes || '',
+        enabled: true,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error adding template:', error);
+      return null;
+    }
+
+    const mapped = {
+      id: data.id,
+      category: data.category,
+      amount: parseFloat(data.amount),
+      notes: data.notes,
+      enabled: data.enabled,
+    };
+
+    dispatch({ type: 'ADD_RECURRING_TEMPLATE', payload: mapped });
+    return mapped;
+  };
+
+  const updateRecurringTemplate = async (id, updatedData) => {
+    const dbUpdate = {};
+    if (updatedData.category !== undefined) dbUpdate.category = updatedData.category;
+    if (updatedData.amount !== undefined) dbUpdate.amount = updatedData.amount;
+    if (updatedData.notes !== undefined) dbUpdate.notes = updatedData.notes;
+    if (updatedData.enabled !== undefined) dbUpdate.enabled = updatedData.enabled;
+
+    const { error } = await supabase
+      .from('recurring_templates')
+      .update(dbUpdate)
+      .eq('id', id);
+
+    if (error) {
+      console.error('Error updating template:', error);
+      return;
+    }
+
+    dispatch({ type: 'UPDATE_RECURRING_TEMPLATE', payload: { id, data: updatedData } });
+  };
+
+  const deleteRecurringTemplate = async (id) => {
+    const { error } = await supabase
+      .from('recurring_templates')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      console.error('Error deleting template:', error);
+      return;
+    }
+
+    dispatch({ type: 'DELETE_RECURRING_TEMPLATE', payload: id });
+  };
+
+  const applyRecurringExpenses = async (year, month) => {
+    const monthStr = `${year}-${String(month).padStart(2, '0')}`;
+    const alreadyApplied = expenses.some(
+      (e) => e.date.startsWith(monthStr) && e.recurring
+    );
+    if (alreadyApplied) return;
+
+    const dateStr = new Date(year, month - 1, 1).toISOString().split('T')[0];
+    const enabledTemplates = recurringTemplates.filter((t) => t.enabled);
+
+    if (enabledTemplates.length === 0) return;
+
+    const rows = enabledTemplates.map((template) => ({
+      artist_id: artistId,
+      date: dateStr,
+      category: template.category,
+      amount: template.amount,
+      notes: template.notes,
+      recurring: true,
+    }));
+
+    const { data, error } = await supabase
+      .from('expenses')
+      .insert(rows)
+      .select();
+
+    if (error) {
+      console.error('Error applying recurring expenses:', error);
+      return;
+    }
+
+    const mapped = (data || []).map((row) => ({
+      id: row.id,
+      date: row.date,
+      category: row.category,
+      amount: parseFloat(row.amount),
+      notes: row.notes,
+      recurring: row.recurring,
+      createdAt: row.created_at,
+    }));
+
+    dispatch({ type: 'APPLY_RECURRING_EXPENSES', payload: mapped });
+  };
+
+  // ---------- Computed ----------
+
   const getExpensesByDateRange = (startDate, endDate) => {
-    return expenses.filter(expense => {
-      const expenseDate = new Date(expense.date);
-      return expenseDate >= new Date(startDate) && expenseDate <= new Date(endDate);
+    return expenses.filter((expense) => {
+      const d = new Date(expense.date);
+      return d >= new Date(startDate) && d <= new Date(endDate);
     });
   };
 
-  // Get total expenses
   const getTotalExpenses = () => {
-    return expenses.reduce((sum, expense) => sum + expense.amount, 0);
+    return expenses.reduce((sum, e) => sum + e.amount, 0);
   };
 
-  // Get expenses by category
   const getExpensesByCategory = () => {
     const byCategory = {};
-    expenses.forEach(expense => {
-      if (!byCategory[expense.category]) {
-        byCategory[expense.category] = 0;
-      }
-      byCategory[expense.category] += expense.amount;
+    expenses.forEach((e) => {
+      if (!byCategory[e.category]) byCategory[e.category] = 0;
+      byCategory[e.category] += e.amount;
     });
     return byCategory;
   };
@@ -156,6 +217,6 @@ export function useExpenses() {
     applyRecurringExpenses,
     getExpensesByDateRange,
     getTotalExpenses,
-    getExpensesByCategory
+    getExpensesByCategory,
   };
 }

@@ -125,12 +125,17 @@ function Landing() {
             </div>
 
             {/* Desktop CTA */}
-            <Link 
-              to="/dashboard" 
-              className="hidden md:block px-4 py-2 bg-accent-primary hover:bg-blue-600 rounded-lg font-medium transition"
-            >
-              Try Dashboard
-            </Link>
+            <div className="hidden md:flex items-center gap-4">
+              <Link to="/login" className="text-text-secondary hover:text-text-primary transition">
+                Log In
+              </Link>
+              <Link 
+                to="/signup" 
+                className="px-4 py-2 bg-accent-primary hover:bg-teal-600 rounded-lg font-medium transition"
+              >
+                Sign Up Free
+              </Link>
+            </div>
 
             {/* Mobile Menu Button */}
             <button 
@@ -167,11 +172,18 @@ function Landing() {
                   Roadmap
                 </a>
                 <Link 
-                  to="/dashboard" 
-                  className="px-4 py-2 bg-accent-primary hover:bg-blue-600 rounded-lg font-medium transition text-center"
+                  to="/login" 
+                  className="text-text-secondary hover:text-text-primary transition"
                   onClick={() => setMobileMenuOpen(false)}
                 >
-                  Try Dashboard
+                  Log In
+                </Link>
+                <Link 
+                  to="/signup" 
+                  className="px-4 py-2 bg-accent-primary hover:bg-teal-600 rounded-lg font-medium transition text-center"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Sign Up Free
                 </Link>
               </div>
             </div>
@@ -199,14 +211,14 @@ function Landing() {
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12 md:mb-16 px-4">
             <Link 
-              to="/dashboard"
+              to="/signup"
               className="px-6 md:px-8 py-3 md:py-4 bg-accent-primary hover:bg-blue-600 rounded-lg font-semibold text-base md:text-lg flex items-center justify-center gap-2 transition"
             >
               Start as Solo Artist
               <ArrowRight className="w-4 h-4 md:w-5 md:h-5" />
             </Link>
             <Link 
-              to="/studio/dashboard"
+              to="/studio/signup"
               className="px-6 md:px-8 py-3 md:py-4 bg-bg-tertiary hover:bg-bg-secondary border border-border-primary rounded-lg font-semibold text-base md:text-lg transition"
             >
               Start as Studio
@@ -309,10 +321,10 @@ function Landing() {
               </ul>
 
               <Link 
-                to="/dashboard"
+                to="/signup"
                 className="block w-full py-3 bg-accent-primary hover:bg-blue-600 rounded-lg font-semibold text-center transition"
               >
-                Try Solo Dashboard
+                Get Started
               </Link>
             </div>
 
@@ -350,10 +362,10 @@ function Landing() {
               </ul>
 
               <Link 
-                to="/studio/dashboard"
+                to="/studio/signup"
                 className="block w-full py-3 bg-accent-primary hover:bg-blue-600 rounded-lg font-semibold text-center transition"
               >
-                Try Studio Dashboard
+                Get Started
               </Link>
             </div>
           </div>
@@ -405,14 +417,14 @@ function Landing() {
           
           <div className="flex flex-col sm:flex-row gap-4 justify-center px-4">
             <Link 
-              to="/dashboard"
+              to="/signup"
               className="px-6 md:px-8 py-3 md:py-4 bg-accent-primary hover:bg-blue-600 rounded-lg font-semibold text-base md:text-lg flex items-center justify-center gap-2 transition"
             >
-              Start as Solo Artist
+              Start as Artist
               <ArrowRight className="w-4 h-4 md:w-5 md:h-5" />
             </Link>
             <Link 
-              to="/studio/dashboard"
+              to="/studio/signup"
               className="px-6 md:px-8 py-3 md:py-4 bg-bg-primary hover:bg-bg-tertiary border border-border-primary rounded-lg font-semibold text-base md:text-lg transition"
             >
               Start as Studio

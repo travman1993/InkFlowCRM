@@ -1,33 +1,42 @@
-import { useState } from 'react';
+import { useAppContext } from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
 
 export function useArtistSettings() {
-  const [settings, setSettings] = useState({
-    paymentModel: 'booth_rent', // 'booth_rent' or 'commission'
-    boothRentAmount: 800, // Monthly booth rent
-    commissionRate: 0.60, // 60% if commission-based (artist keeps 60%, studio gets 40%)
-    name: 'Your Name',
-    studioName: '',
-    phone: '',
-    email: ''
-  });
+  const { state, dispatch } = useAppContext();
+  const { updateArtist } = useAuth();
+  const { settings } = state;
 
-  // Update settings
-  const updateSettings = (newSettings) => {
-    setSettings({ ...settings, ...newSettings });
+  const updateSettings = async (newSettings) => {
+    // Build the DB update (camelCase → snake_case)
+    const dbUpdate = {};
+    if (newSettings.name !== undefined) dbUpdate.name = newSettings.name;
+    if (newSettings.studioName !== undefined) dbUpdate.studio_name = newSettings.studioName;
+    if (newSettings.phone !== undefined) dbUpdate.phone = newSettings.phone;
+    if (newSettings.email !== undefined) dbUpdate.email = newSettings.email;
+    if (newSettings.paymentModel !== undefined) dbUpdate.pay_model = newSettings.paymentModel;
+    if (newSettings.boothRentAmount !== undefined) dbUpdate.booth_rent_amount = newSettings.boothRentAmount;
+    if (newSettings.commissionRate !== undefined) dbUpdate.commission_rate = newSettings.commissionRate;
+
+    // Write to Supabase via AuthContext (updates artist table)
+    const { error } = await updateArtist(dbUpdate);
+
+    if (error) {
+      console.error('Error updating settings:', error);
+      return;
+    }
+
+    // Update local state
+    dispatch({ type: 'UPDATE_SETTINGS', payload: newSettings });
   };
 
-  // Calculate artist earnings based on payment model
   const calculateArtistEarnings = (tattooPrice, suppliesCost) => {
     if (settings.paymentModel === 'booth_rent') {
-      // Booth rent: Artist keeps 100% minus supplies
       return tattooPrice - suppliesCost;
     } else {
-      // Commission: Artist gets X%, then minus supplies
       return (tattooPrice * settings.commissionRate) - suppliesCost;
     }
   };
 
-  // Calculate studio cut (only for commission model)
   const calculateStudioCut = (tattooPrice) => {
     if (settings.paymentModel === 'commission') {
       return tattooPrice * (1 - settings.commissionRate);
@@ -39,6 +48,6 @@ export function useArtistSettings() {
     settings,
     updateSettings,
     calculateArtistEarnings,
-    calculateStudioCut
+    calculateStudioCut,
   };
 }

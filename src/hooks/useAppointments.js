@@ -1,101 +1,92 @@
-import { useState } from 'react';
+import { useAppContext } from '../context/AppContext';
+import { supabase } from '../lib/supabase';
 
-// Custom hook to manage appointments
 export function useAppointments() {
-  const [appointments, setAppointments] = useState([
-    { 
-      id: 1, 
-      date: '2026-02-05', 
-      client: 'John Smith', 
-      type: 'tattoo', 
-      time: '2:00 PM',
-      duration: 120,
-      notes: 'Full sleeve session - continuing work on dragon design',
-      phone: '555-123-4567',
-      status: 'scheduled'
-    },
-    { 
-      id: 2, 
-      date: '2026-02-05', 
-      client: 'Sarah Johnson', 
-      type: 'consult', 
-      time: '4:30 PM',
-      duration: 30,
-      notes: 'First tattoo - wants small floral design on wrist',
-      phone: '555-987-6543',
-      status: 'scheduled'
-    },
-    { 
-      id: 3, 
-      date: '2026-02-07', 
-      client: 'Mike Davis', 
-      type: 'tattoo', 
-      time: '10:00 AM',
-      duration: 180,
-      notes: 'Chest piece - geometric design',
-      phone: '555-456-7890',
-      status: 'scheduled'
-    },
-    { 
-      id: 4, 
-      date: '2026-02-12', 
-      client: 'Emily Brown', 
-      type: 'tattoo', 
-      time: '1:00 PM',
-      duration: 90,
-      notes: 'Touch-up on previous work',
-      phone: '555-234-5678',
-      status: 'scheduled'
-    },
-    { 
-      id: 5, 
-      date: '2026-02-15', 
-      client: 'Chris Wilson', 
-      type: 'consult', 
-      time: '3:00 PM',
-      duration: 45,
-      notes: 'Consultation for back piece',
-      phone: '555-345-6789',
-      status: 'scheduled'
-    },
-    { 
-      id: 6, 
-      date: '2026-02-18', 
-      client: 'Amanda Lee', 
-      type: 'tattoo', 
-      time: '11:00 AM',
-      duration: 150,
-      notes: 'Thigh tattoo - Japanese style koi fish',
-      phone: '555-567-8901',
-      status: 'scheduled'
-    },
-  ]);
+  const { state, dispatch, artistId } = useAppContext();
+  const { appointments } = state;
 
-  // Add new appointment
-  const addAppointment = (appointment) => {
-    const newAppointment = {
-      ...appointment,
-      id: Date.now(), // Generate unique ID
-      status: 'scheduled'
+  const addAppointment = async (appointment) => {
+    const { data, error } = await supabase
+      .from('appointments')
+      .insert({
+        artist_id: artistId,
+        client_id: appointment.clientId || null,
+        client_name: appointment.client,
+        appointment_type: appointment.type,
+        scheduled_date: appointment.date,
+        scheduled_time: appointment.time,
+        duration_minutes: appointment.duration,
+        notes: appointment.notes || '',
+        phone: appointment.phone || '',
+        status: 'scheduled',
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error adding appointment:', error);
+      return null;
+    }
+
+    const mapped = {
+      id: data.id,
+      date: data.scheduled_date,
+      client: data.client_name,
+      clientId: data.client_id,
+      type: data.appointment_type,
+      time: data.scheduled_time,
+      duration: data.duration_minutes,
+      notes: data.notes,
+      phone: data.phone,
+      status: data.status,
     };
-    setAppointments([...appointments, newAppointment]);
+
+    dispatch({ type: 'ADD_APPOINTMENT', payload: mapped });
+    return mapped;
   };
 
-  // Update existing appointment
-  const updateAppointment = (id, updatedData) => {
-    setAppointments(appointments.map(apt => 
-      apt.id === id ? { ...apt, ...updatedData } : apt
-    ));
+  const updateAppointment = async (id, updatedData) => {
+    // Build the DB update object (camelCase → snake_case)
+    const dbUpdate = {};
+    if (updatedData.client !== undefined) dbUpdate.client_name = updatedData.client;
+    if (updatedData.clientId !== undefined) dbUpdate.client_id = updatedData.clientId;
+    if (updatedData.type !== undefined) dbUpdate.appointment_type = updatedData.type;
+    if (updatedData.date !== undefined) dbUpdate.scheduled_date = updatedData.date;
+    if (updatedData.time !== undefined) dbUpdate.scheduled_time = updatedData.time;
+    if (updatedData.duration !== undefined) dbUpdate.duration_minutes = updatedData.duration;
+    if (updatedData.notes !== undefined) dbUpdate.notes = updatedData.notes;
+    if (updatedData.phone !== undefined) dbUpdate.phone = updatedData.phone;
+    if (updatedData.status !== undefined) dbUpdate.status = updatedData.status;
+
+    const { error } = await supabase
+      .from('appointments')
+      .update(dbUpdate)
+      .eq('id', id);
+
+    if (error) {
+      console.error('Error updating appointment:', error);
+      return;
+    }
+
+    dispatch({ type: 'UPDATE_APPOINTMENT', payload: { id, data: updatedData } });
   };
 
-  // Delete appointment
-  const deleteAppointment = (id) => {
-    setAppointments(appointments.filter(apt => apt.id !== id));
+  const deleteAppointment = async (id) => {
+    const { error } = await supabase
+      .from('appointments')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      console.error('Error deleting appointment:', error);
+      return;
+    }
+
+    dispatch({ type: 'DELETE_APPOINTMENT', payload: id });
   };
 
-  // Get appointments for a specific date
   const getAppointmentsByDate = (dateStr) => {
-    return appointments.filter(apt => apt.date === dateStr);
+    return appointments.filter((apt) => apt.date === dateStr);
   };
 
   return {
@@ -103,6 +94,6 @@ export function useAppointments() {
     addAppointment,
     updateAppointment,
     deleteAppointment,
-    getAppointmentsByDate
+    getAppointmentsByDate,
   };
 }

@@ -1,10 +1,10 @@
 import MonthView from '../components/calendar/MonthView';
 import { useAppointments } from '../hooks/useAppointments';
-import { useTattoos } from '../hooks/useTattoos';
-import { useClients } from '../hooks/useClients';
+import { useAppContext } from '../context/AppContext';
 import DashboardLayout from '../components/layout/DashboardLayout';
 
 function Dashboard() {
+  const { dispatch } = useAppContext();
   const {
     appointments,
     addAppointment,
@@ -12,22 +12,16 @@ function Dashboard() {
     deleteAppointment
   } = useAppointments();
 
-  const { addTattoo } = useTattoos();
-  const { updateClient, getClientById } = useClients();
-
   const handleCompleteTattoo = (tattooData) => {
-    // Add tattoo to database
-    const newTattoo = addTattoo(tattooData);
-    
-    // Update client stats
-    const client = getClientById(tattooData.clientId);
-    if (client) {
-      updateClient(client.id, {
-        totalSpent: client.totalSpent + tattooData.price,
-        totalTattoos: client.totalTattoos + 1,
-        lastVisit: tattooData.date
-      });
-    }
+    // Single dispatch updates tattoos + client stats + appointment status
+    dispatch({
+      type: 'COMPLETE_TATTOO',
+      payload: {
+        tattooData,
+        appointmentId: tattooData.appointmentId,
+        clientId: tattooData.clientId ? parseInt(tattooData.clientId) : null,
+      },
+    });
   };
 
   return (

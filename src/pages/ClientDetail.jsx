@@ -9,11 +9,10 @@ function ClientDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { getClientById, updateClient, deleteClient } = useClients();
-  
+
   const client = getClientById(id);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
-  // If client not found, redirect
   if (!client) {
     return (
       <DashboardLayout>
@@ -23,7 +22,7 @@ function ClientDetail() {
             <p className="text-text-secondary mb-6">The client you're looking for doesn't exist.</p>
             <button
               onClick={() => navigate('/clients')}
-              className="px-6 py-3 bg-accent-primary hover:bg-blue-600 rounded-lg font-semibold transition"
+              className="px-6 py-3 bg-accent-primary hover:bg-teal-600 rounded-lg font-semibold transition"
             >
               Back to Clients
             </button>
