@@ -10,51 +10,99 @@ export function AuthProvider({ children }) {
 
   // Fetch the artist profile for the logged-in user
   const fetchArtist = async (userId) => {
-    const { data, error } = await supabase
-      .from('artists')
-      .select('*')
-      .eq('user_id', userId)
-      .single();
+    console.log('[AuthContext] fetchArtist called for:', userId);
+    try {
+      const { data, error } = await supabase
+        .from('artists')
+        .select('*')
+        .eq('user_id', userId)
+        .single();
 
-    if (error) {
-      console.error('Error fetching artist:', error);
+      console.log('[AuthContext] fetchArtist result:', data, error);
+
+      if (error) {
+        console.error('[AuthContext] fetchArtist error:', error);
+        return null;
+      }
+      return data;
+    } catch (err) {
+      console.error('[AuthContext] fetchArtist unexpected error:', err);
       return null;
     }
-    return data;
   };
 
   useEffect(() => {
-    // Check for existing session on load
-    const getSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+    let isMounted = true;
 
-      if (session?.user) {
-        setUser(session.user);
-        const artistData = await fetchArtist(session.user.id);
-        setArtist(artistData);
-      }
-      setLoading(false);
-    };
+    // 1. Get the initial session and fetch artist
+    const initAuth = async () => {
+      console.log('[AuthContext] initAuth starting...');
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        console.log('[AuthContext] getSession result:', session ? 'HAS SESSION' : 'NO SESSION');
 
-    getSession();
-
-    // Listen for auth changes (login, logout, token refresh)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (session?.user) {
+        if (session?.user && isMounted) {
           setUser(session.user);
           const artistData = await fetchArtist(session.user.id);
-          setArtist(artistData);
+          console.log('[AuthContext] artist loaded:', artistData);
+          if (isMounted) setArtist(artistData);
+        }
+      } catch (err) {
+        console.error('[AuthContext] initAuth error:', err);
+      } finally {
+        console.log('[AuthContext] initAuth done, setting loading = false');
+        if (isMounted) setLoading(false);
+      }
+    };
+
+    initAuth();
+
+    // 2. Listen for auth changes — but DON'T make DB calls inside the callback.
+    //    Instead, just update user state. The DB fetch happens via the
+    //    separate useEffect below that watches `user`.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        console.log('[AuthContext] onAuthStateChange event:', event);
+        if (session?.user) {
+          setUser(session.user);
         } else {
           setUser(null);
           setArtist(null);
+          setLoading(false);
         }
-        setLoading(false);
       }
     );
 
-    return () => subscription.unsubscribe();
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
+
+  // 3. Whenever `user` changes (from login/logout), fetch artist separately.
+  //    This avoids the Supabase deadlock from querying inside onAuthStateChange.
+  useEffect(() => {
+    if (!user) return;
+
+    let cancelled = false;
+
+    const loadArtist = async () => {
+      console.log('[AuthContext] loadArtist triggered for user:', user.id);
+      const artistData = await fetchArtist(user.id);
+      if (!cancelled) {
+        console.log('[AuthContext] loadArtist setting artist:', artistData);
+        setArtist(artistData);
+        setLoading(false);
+      }
+    };
+
+    // Only fetch if we don't already have the artist
+    if (!artist) {
+      loadArtist();
+    }
+
+    return () => { cancelled = true; };
+  }, [user]);
 
   // ---------- Auth Methods ----------
 
