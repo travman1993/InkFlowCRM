@@ -7,26 +7,27 @@ export function useArtistSettings() {
   const { settings } = state;
 
   const updateSettings = async (newSettings) => {
-    // Build the DB update (camelCase → snake_case)
+    // 1. Build the Supabase update (camelCase → snake_case)
     const dbUpdate = {};
+    if (newSettings.paymentModel !== undefined) dbUpdate.pay_model = newSettings.paymentModel;
+    if (newSettings.commissionRate !== undefined) dbUpdate.commission_rate = newSettings.commissionRate;
+    if (newSettings.boothRentAmount !== undefined) dbUpdate.booth_rent_amount = newSettings.boothRentAmount;
     if (newSettings.name !== undefined) dbUpdate.name = newSettings.name;
     if (newSettings.studioName !== undefined) dbUpdate.studio_name = newSettings.studioName;
     if (newSettings.phone !== undefined) dbUpdate.phone = newSettings.phone;
     if (newSettings.email !== undefined) dbUpdate.email = newSettings.email;
-    if (newSettings.paymentModel !== undefined) dbUpdate.pay_model = newSettings.paymentModel;
-    if (newSettings.boothRentAmount !== undefined) dbUpdate.booth_rent_amount = newSettings.boothRentAmount;
-    if (newSettings.commissionRate !== undefined) dbUpdate.commission_rate = newSettings.commissionRate;
 
-    // Write to Supabase via AuthContext (updates artist table)
+    // 2. Write to Supabase
     const { error } = await updateArtist(dbUpdate);
 
     if (error) {
-      console.error('Error updating settings:', error);
-      return;
+      console.error('Error saving settings:', error);
+      return { error };
     }
 
-    // Update local state
+    // 3. Update local state
     dispatch({ type: 'UPDATE_SETTINGS', payload: newSettings });
+    return { error: null };
   };
 
   const calculateArtistEarnings = (tattooPrice, suppliesCost) => {

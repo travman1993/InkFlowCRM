@@ -17,12 +17,13 @@ import { useTattoos } from '../../hooks/useTattoos';
 
 function ClientProfile({ client, onEdit, onDelete, onUpdateClient }) {
   const navigate = useNavigate();
-  const { getTattoosByClient, addTattoo } = useTattoos();
+  const { getTattoosByClient, completeTattoo } = useTattoos();
   const [isAddTattooOpen, setIsAddTattooOpen] = useState(false);
 
   const clientTattoos = getTattoosByClient(client.id);
 
   const formatDate = (dateStr) => {
+    if (!dateStr) return 'N/A';
     const date = new Date(dateStr + 'T00:00:00');
     return date.toLocaleDateString('en-US', { 
       weekday: 'long',
@@ -49,16 +50,16 @@ function ClientProfile({ client, onEdit, onDelete, onUpdateClient }) {
     }
   };
 
-  const handleSaveTattoo = (tattooData) => {
-    // Add tattoo
-    addTattoo(tattooData);
-    
-    // Update client stats
-    onUpdateClient(client.id, {
-      totalSpent: client.totalSpent + tattooData.price,
-      totalTattoos: client.totalTattoos + 1,
-      lastVisit: tattooData.date
-    });
+  const handleSaveTattoo = async (tattooData) => {
+    // Use completeTattoo which handles:
+    // 1. Inserting tattoo to Supabase
+    // 2. Updating client stats in Supabase
+    // 3. Updating local state
+    await completeTattoo(
+      tattooData,
+      null, // no appointment
+      client.id
+    );
     
     setIsAddTattooOpen(false);
   };
@@ -232,7 +233,7 @@ function ClientProfile({ client, onEdit, onDelete, onUpdateClient }) {
                             ${tattoo.price}
                           </div>
                           <div className="text-xs text-text-tertiary">
-                            Supplies: ${tattoo.suppliesCost}
+                            Supplies: ${tattoo.suppliesCost} | Earnings: ${tattoo.artistEarnings}
                           </div>
                         </div>
                       </div>

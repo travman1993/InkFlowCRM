@@ -1,7 +1,10 @@
 import { useState, useEffect } from 'react';
 import { X, Upload, DollarSign, Package, MapPin, FileText, Image as ImageIcon } from 'lucide-react';
+import { useArtistSettings } from '../../hooks/useArtistSettings';
 
 function FinishTattooModal({ isOpen, onClose, onSave, appointment = null, client = null }) {
+  const { settings, calculateArtistEarnings, calculateStudioCut } = useArtistSettings();
+
   const [formData, setFormData] = useState({
     clientId: '',
     clientName: '',
@@ -67,20 +70,28 @@ function FinishTattooModal({ isOpen, onClose, onSave, appointment = null, client
     setFormData({ ...formData, images: newImages });
   };
 
-  const calculateEarnings = () => {
+  const getEarnings = () => {
     const price = parseFloat(formData.price) || 0;
     const supplies = parseFloat(formData.suppliesCost) || 0;
-    return price - supplies;
+    return calculateArtistEarnings(price, supplies);
+  };
+
+  const getStudioCut = () => {
+    const price = parseFloat(formData.price) || 0;
+    return calculateStudioCut(price);
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
     
+    const price = parseFloat(formData.price) || 0;
+    const suppliesCost = parseFloat(formData.suppliesCost) || 0;
+
     const tattooData = {
       ...formData,
-      price: parseFloat(formData.price) || 0,
-      suppliesCost: parseFloat(formData.suppliesCost) || 0,
-      artistEarnings: calculateEarnings(),
+      price,
+      suppliesCost,
+      artistEarnings: calculateArtistEarnings(price, suppliesCost),
       completedAt: new Date().toISOString()
     };
     
@@ -104,6 +115,10 @@ function FinishTattooModal({ isOpen, onClose, onSave, appointment = null, client
   };
 
   if (!isOpen) return null;
+
+  const earnings = getEarnings();
+  const studioCut = getStudioCut();
+  const isCommission = settings.paymentModel === 'commission';
 
   return (
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 overflow-y-auto">
@@ -222,17 +237,36 @@ function FinishTattooModal({ isOpen, onClose, onSave, appointment = null, client
           {/* Earnings Display */}
           {(formData.price || formData.suppliesCost) && (
             <div className="bg-accent-success/10 border border-accent-success/30 rounded-lg p-4">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between mb-2">
                 <div>
                   <div className="text-sm text-text-secondary">Your Earnings</div>
                   <div className="text-xs text-text-tertiary mt-1">
-                    ${formData.price || 0} - ${formData.suppliesCost || 0} supplies
+                    {isCommission ? (
+                      <>
+                        ${formData.price || 0} × {Math.round(settings.commissionRate * 100)}% - ${formData.suppliesCost || 0} supplies
+                      </>
+                    ) : (
+                      <>
+                        ${formData.price || 0} - ${formData.suppliesCost || 0} supplies
+                      </>
+                    )}
                   </div>
                 </div>
                 <div className="text-3xl font-bold text-accent-success">
-                  ${calculateEarnings().toFixed(2)}
+                  ${earnings.toFixed(2)}
                 </div>
               </div>
+
+              {isCommission && studioCut > 0 && (
+                <div className="flex items-center justify-between pt-2 mt-2 border-t border-accent-success/20">
+                  <div className="text-xs text-text-tertiary">
+                    Studio cut ({Math.round((1 - settings.commissionRate) * 100)}%)
+                  </div>
+                  <div className="text-sm text-text-tertiary">
+                    ${studioCut.toFixed(2)}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

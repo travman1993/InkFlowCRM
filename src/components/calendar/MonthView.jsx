@@ -90,12 +90,11 @@ function MonthView({ appointments, onAddAppointment, onUpdateAppointment, onDele
 
   // Handle save completed tattoo
   const handleSaveCompletedTattoo = (tattooData) => {
-    // Mark appointment as completed
-    if (completingAppointment) {
-      onUpdateAppointment(completingAppointment.id, { status: 'completed' });
-    }
-    
-    // Save tattoo data
+    // The completeTattoo hook handles everything:
+    // 1. Inserts tattoo record to Supabase
+    // 2. Updates appointment status to 'completed' in Supabase
+    // 3. Updates client stats in Supabase
+    // 4. Updates local state via dispatch
     onCompleteTattoo(tattooData);
     
     // Close modal
