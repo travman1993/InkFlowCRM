@@ -9,6 +9,7 @@ import {
   X,
   LogOut,
   Droplets,
+  Building2,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useAppContext } from '../../context/AppContext';
@@ -20,17 +21,19 @@ function DashboardLayout({ children }) {
   const { loaded, loadError } = useAppContext();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
+  const isStudio = Boolean(artist?.studio_name);
+
   const navItems = [
-    { path: '/dashboard', label: 'Calendar', icon: Calendar },
+    ...(!isStudio ? [{ path: '/dashboard', label: 'Calendar', icon: Calendar }] : []),
     { path: '/clients', label: 'Clients', icon: Users },
-    { path: '/analytics', label: 'Analytics', icon: BarChart3 },
+    ...(!isStudio ? [{ path: '/analytics', label: 'Analytics', icon: BarChart3 }] : []),
+    ...(isStudio ? [{ path: '/studio/dashboard', label: 'Studio', icon: Building2 }] : []),
     { path: '/settings', label: 'Settings', icon: Settings },
   ];
 
   const isActive = (path) => {
-    if (path === '/clients') {
-      return location.pathname.startsWith('/clients');
-    }
+    if (path === '/clients') return location.pathname.startsWith('/clients');
+    if (path === '/studio/dashboard') return location.pathname.startsWith('/studio');
     return location.pathname === path;
   };
 

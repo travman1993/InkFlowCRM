@@ -1,6 +1,6 @@
-import { X, Calendar, Clock, Phone, FileText, Edit2, Trash2, User } from 'lucide-react';
+import { X, Calendar, Clock, Phone, FileText, Edit2, Trash2, User, CheckCircle } from 'lucide-react';
 
-function StudioAppointmentDetailModal({ isOpen, onClose, appointment, artists, onEdit, onDelete }) {
+function StudioAppointmentDetailModal({ isOpen, onClose, appointment, artists, onEdit, onDelete, onComplete }) {
   if (!isOpen || !appointment) return null;
 
   const artist = artists.find(a => a.id === appointment.studioArtistId);
@@ -101,7 +101,17 @@ function StudioAppointmentDetailModal({ isOpen, onClose, appointment, artists, o
         </div>
 
         {/* Actions */}
-        <div className="p-6 border-t border-border-primary flex gap-3">
+        <div className="p-6 border-t border-border-primary flex flex-wrap gap-3">
+          {/* Complete Session — only for tattoo appointments not yet completed */}
+          {appointment.type === 'tattoo' && appointment.status !== 'completed' && onComplete && (
+            <button
+              onClick={() => { onComplete(appointment); onClose(); }}
+              className="flex items-center gap-2 px-4 py-2 bg-accent-success/20 text-accent-success hover:bg-accent-success/30 rounded-lg font-semibold transition"
+            >
+              <CheckCircle className="w-4 h-4" />
+              Complete Session
+            </button>
+          )}
           <button
             onClick={() => { onEdit(appointment); onClose(); }}
             className="flex items-center gap-2 px-4 py-2 bg-bg-primary border border-border-primary hover:bg-bg-tertiary rounded-lg font-semibold transition"

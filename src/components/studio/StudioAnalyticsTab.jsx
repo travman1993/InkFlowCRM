@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { DollarSign, TrendingDown, TrendingUp, Scissors } from 'lucide-react';
+import { DollarSign, TrendingDown, TrendingUp, Scissors, Download } from 'lucide-react';
 import StatCard from '../analytics/StatCard';
 import RevenueChart from '../analytics/RevenueChart';
 
@@ -57,6 +57,37 @@ function StudioAnalyticsTab({ studio }) {
     studio.tattoos.filter(t => t.date >= startStr && t.date <= endStr),
     [studio.tattoos, startStr, endStr]
   );
+
+  const exportCSV = () => {
+    const periodLabel = PERIODS.find(p => p.id === selectedPeriod)?.label || selectedPeriod;
+    const headers = ['Date', 'Artist', 'Client', 'Price', 'Supplies Cost', 'Artist Earnings', 'Studio Take', 'Body Location', 'Notes', 'Paid'];
+    const rows = filteredTattoos.map(t => {
+      const artist = studio.artists.find(a => a.id === t.studioArtistId);
+      const artistName = artist ? artist.name : 'Owner';
+      const studioTakeRow = t.price - t.artistEarnings;
+      return [
+        t.date,
+        artistName,
+        t.clientName,
+        t.price.toFixed(2),
+        t.suppliesCost.toFixed(2),
+        t.artistEarnings.toFixed(2),
+        studioTakeRow.toFixed(2),
+        t.bodyLocation || '',
+        (t.notes || '').replace(/,/g, ';'),
+        t.paid ? 'Yes' : 'No',
+      ];
+    });
+
+    const csv = [headers, ...rows].map(r => r.join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `studio-revenue-${periodLabel.toLowerCase().replace(/\s+/g, '-')}.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+  };
 
   const totalRevenue  = filteredTattoos.reduce((s, t) => s + t.price, 0);
   const totalPayouts  = filteredTattoos.reduce((s, t) => s + t.artistEarnings, 0);
@@ -132,21 +163,31 @@ function StudioAnalyticsTab({ studio }) {
 
   return (
     <div className="max-w-7xl mx-auto p-4 md:p-6 space-y-8">
-      {/* Period Selector */}
-      <div className="flex gap-2 flex-wrap">
-        {PERIODS.map(p => (
-          <button
-            key={p.id}
-            onClick={() => setSelectedPeriod(p.id)}
-            className={`px-4 py-2 rounded-lg font-semibold text-sm transition ${
-              selectedPeriod === p.id
-                ? 'bg-accent-primary text-white'
-                : 'bg-bg-secondary border border-border-primary text-text-secondary hover:text-text-primary hover:bg-bg-tertiary'
-            }`}
-          >
-            {p.label}
-          </button>
-        ))}
+      {/* Period Selector + Export */}
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div className="flex gap-2 flex-wrap">
+          {PERIODS.map(p => (
+            <button
+              key={p.id}
+              onClick={() => setSelectedPeriod(p.id)}
+              className={`px-4 py-2 rounded-lg font-semibold text-sm transition ${
+                selectedPeriod === p.id
+                  ? 'bg-accent-primary text-white'
+                  : 'bg-bg-secondary border border-border-primary text-text-secondary hover:text-text-primary hover:bg-bg-tertiary'
+              }`}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+        <button
+          onClick={exportCSV}
+          disabled={filteredTattoos.length === 0}
+          className="flex items-center gap-2 px-4 py-2 bg-bg-secondary border border-border-primary hover:bg-bg-tertiary rounded-lg font-semibold text-sm transition disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          <Download className="w-4 h-4" />
+          Export CSV
+        </button>
       </div>
 
       {/* Stat Cards */}

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { X, Clock, User, FileText, Phone } from 'lucide-react';
+import { useClients } from '../../hooks/useClients';
 
 const TIME_SLOTS = [];
 for (let h = 8; h <= 20; h++) {
@@ -10,6 +11,8 @@ for (let h = 8; h <= 20; h++) {
 }
 
 function StudioAppointmentModal({ isOpen, onClose, onSave, artists, appointment = null, selectedDate = null }) {
+  const { clients } = useClients();
+
   const [formData, setFormData] = useState({
     studioArtistId: '',
     clientName: '',
@@ -20,6 +23,9 @@ function StudioAppointmentModal({ isOpen, onClose, onSave, artists, appointment 
     duration: 120,
     notes: '',
   });
+
+  const [clientSearch, setClientSearch] = useState('');
+  const [showClientDropdown, setShowClientDropdown] = useState(false);
 
   useEffect(() => {
     if (appointment) {
@@ -33,6 +39,7 @@ function StudioAppointmentModal({ isOpen, onClose, onSave, artists, appointment 
         duration: appointment.duration || 120,
         notes: appointment.notes || '',
       });
+      setClientSearch(appointment.clientName || '');
     } else {
       setFormData({
         studioArtistId: artists.length === 1 ? artists[0].id : '',
@@ -44,12 +51,37 @@ function StudioAppointmentModal({ isOpen, onClose, onSave, artists, appointment 
         duration: 120,
         notes: '',
       });
+      setClientSearch('');
     }
   }, [appointment, selectedDate, isOpen, artists]);
 
+  const filteredClients = clients.filter(c =>
+    c.name.toLowerCase().includes(clientSearch.toLowerCase())
+  );
+
+  const handleSelectClient = (client) => {
+    setFormData(f => ({
+      ...f,
+      clientName: client.name,
+      clientPhone: client.phone || f.clientPhone,
+    }));
+    setClientSearch(client.name);
+    setShowClientDropdown(false);
+  };
+
+  const handleClientInputChange = (value) => {
+    setClientSearch(value);
+    setFormData(f => ({ ...f, clientName: value }));
+    setShowClientDropdown(value.length > 0 || clients.length > 0);
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
-    onSave({ ...formData, studioArtistId: formData.studioArtistId || null });
+    onSave({
+      ...formData,
+      clientName: clientSearch || formData.clientName,
+      studioArtistId: formData.studioArtistId || null,
+    });
     onClose();
   };
 
@@ -75,7 +107,7 @@ function StudioAppointmentModal({ isOpen, onClose, onSave, artists, appointment 
             </label>
             <select
               value={formData.studioArtistId}
-              onChange={(e) => setFormData({ ...formData, studioArtistId: e.target.value })}
+              onChange={(e) => setFormData(f => ({ ...f, studioArtistId: e.target.value }))}
               className="w-full px-4 py-3 bg-bg-primary border border-border-primary rounded-lg focus:outline-none focus:border-accent-primary transition"
             >
               <option value="">Owner (You)</option>
@@ -85,17 +117,59 @@ function StudioAppointmentModal({ isOpen, onClose, onSave, artists, appointment 
             </select>
           </div>
 
-          {/* Client */}
-          <div>
-            <label className="block text-sm font-semibold mb-2">Client Name *</label>
+          {/* Client — searchable dropdown */}
+          <div className="relative">
+            <label className="block text-sm font-semibold mb-2 flex items-center gap-2">
+              <User className="w-4 h-4" />
+              Client *
+            </label>
             <input
               type="text"
               required
-              value={formData.clientName}
-              onChange={(e) => setFormData({ ...formData, clientName: e.target.value })}
+              value={clientSearch}
+              onChange={(e) => handleClientInputChange(e.target.value)}
+              onFocus={() => setShowClientDropdown(true)}
+              onBlur={() => setTimeout(() => setShowClientDropdown(false), 200)}
               className="w-full px-4 py-3 bg-bg-primary border border-border-primary rounded-lg focus:outline-none focus:border-accent-primary transition"
-              placeholder="Client name"
+              placeholder="Search or type client name..."
             />
+
+            {/* Linked indicator */}
+            {clients.some(c => c.name === clientSearch) && (
+              <div className="absolute right-3 top-10 text-xs text-accent-success font-semibold">
+                ✓ Linked
+              </div>
+            )}
+
+            {/* Dropdown */}
+            {showClientDropdown && (
+              <div className="absolute z-10 w-full mt-1 bg-bg-secondary border border-border-primary rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                {filteredClients.length > 0 ? (
+                  filteredClients.slice(0, 8).map(client => (
+                    <button
+                      key={client.id}
+                      type="button"
+                      onMouseDown={() => handleSelectClient(client)}
+                      className="w-full text-left px-4 py-3 hover:bg-bg-tertiary transition flex items-center justify-between"
+                    >
+                      <div>
+                        <div className="font-semibold">{client.name}</div>
+                        {client.phone && (
+                          <div className="text-xs text-text-tertiary">{client.phone}</div>
+                        )}
+                      </div>
+                      <div className="text-xs text-text-tertiary">
+                        {client.totalTattoos} tattoo{client.totalTattoos !== 1 ? 's' : ''}
+                      </div>
+                    </button>
+                  ))
+                ) : (
+                  <div className="px-4 py-3 text-text-tertiary text-sm">
+                    No matching clients — name will be saved as typed.
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Phone */}
@@ -107,7 +181,7 @@ function StudioAppointmentModal({ isOpen, onClose, onSave, artists, appointment 
             <input
               type="tel"
               value={formData.clientPhone}
-              onChange={(e) => setFormData({ ...formData, clientPhone: e.target.value })}
+              onChange={(e) => setFormData(f => ({ ...f, clientPhone: e.target.value }))}
               className="w-full px-4 py-3 bg-bg-primary border border-border-primary rounded-lg focus:outline-none focus:border-accent-primary transition"
               placeholder="555-123-4567"
             />
@@ -121,7 +195,7 @@ function StudioAppointmentModal({ isOpen, onClose, onSave, artists, appointment 
                 <button
                   key={t}
                   type="button"
-                  onClick={() => setFormData({ ...formData, type: t })}
+                  onClick={() => setFormData(f => ({ ...f, type: t }))}
                   className={`p-3 rounded-lg border-2 font-semibold transition ${
                     formData.type === t
                       ? 'border-accent-primary bg-accent-primary/10 text-accent-primary'
@@ -142,7 +216,7 @@ function StudioAppointmentModal({ isOpen, onClose, onSave, artists, appointment 
                 type="date"
                 required
                 value={formData.date}
-                onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                onChange={(e) => setFormData(f => ({ ...f, date: e.target.value }))}
                 className="w-full px-4 py-3 bg-bg-primary border border-border-primary rounded-lg focus:outline-none focus:border-accent-primary transition"
               />
             </div>
@@ -154,7 +228,7 @@ function StudioAppointmentModal({ isOpen, onClose, onSave, artists, appointment 
               <select
                 required
                 value={formData.time}
-                onChange={(e) => setFormData({ ...formData, time: e.target.value })}
+                onChange={(e) => setFormData(f => ({ ...f, time: e.target.value }))}
                 className="w-full px-4 py-3 bg-bg-primary border border-border-primary rounded-lg focus:outline-none focus:border-accent-primary transition"
               >
                 {TIME_SLOTS.map(t => <option key={t} value={t}>{t}</option>)}
@@ -165,7 +239,8 @@ function StudioAppointmentModal({ isOpen, onClose, onSave, artists, appointment 
           {/* Duration */}
           <div>
             <label className="block text-sm font-semibold mb-2">
-              Duration: {formData.duration >= 60
+              Duration:{' '}
+              {formData.duration >= 60
                 ? `${Math.floor(formData.duration / 60)}h${formData.duration % 60 > 0 ? ` ${formData.duration % 60}m` : ''}`
                 : `${formData.duration}m`}
             </label>
@@ -175,7 +250,7 @@ function StudioAppointmentModal({ isOpen, onClose, onSave, artists, appointment 
               max="480"
               step="15"
               value={formData.duration}
-              onChange={(e) => setFormData({ ...formData, duration: parseInt(e.target.value) })}
+              onChange={(e) => setFormData(f => ({ ...f, duration: parseInt(e.target.value) }))}
               className="w-full accent-accent-primary"
             />
             <div className="flex justify-between text-xs text-text-tertiary mt-1">
@@ -192,7 +267,7 @@ function StudioAppointmentModal({ isOpen, onClose, onSave, artists, appointment 
             </label>
             <textarea
               value={formData.notes}
-              onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+              onChange={(e) => setFormData(f => ({ ...f, notes: e.target.value }))}
               className="w-full px-4 py-3 bg-bg-primary border border-border-primary rounded-lg focus:outline-none focus:border-accent-primary transition resize-none"
               rows={3}
               placeholder="Design details, reference images..."

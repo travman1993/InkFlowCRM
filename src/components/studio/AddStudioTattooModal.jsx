@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { X, DollarSign, User, MapPin, FileText } from 'lucide-react';
 
-function AddStudioTattooModal({ isOpen, onClose, onSave, artists, preselectedArtistId = null }) {
+function AddStudioTattooModal({ isOpen, onClose, onSave, artists, preselectedArtistId = null, preselectedClientName = '', preselectedDate = null }) {
   const [formData, setFormData] = useState({
     studioArtistId: '',
     clientName: '',
@@ -18,8 +18,8 @@ function AddStudioTattooModal({ isOpen, onClose, onSave, artists, preselectedArt
     if (isOpen) {
       setFormData({
         studioArtistId: preselectedArtistId || (artists.length === 1 ? artists[0].id : ''),
-        clientName: '',
-        date: new Date().toISOString().split('T')[0],
+        clientName: preselectedClientName || '',
+        date: preselectedDate || new Date().toISOString().split('T')[0],
         price: '',
         suppliesCost: '',
         artistEarnings: '',
@@ -28,7 +28,7 @@ function AddStudioTattooModal({ isOpen, onClose, onSave, artists, preselectedArt
         paid: true,
       });
     }
-  }, [isOpen, preselectedArtistId, artists]);
+  }, [isOpen, preselectedArtistId, preselectedClientName, preselectedDate, artists]);
 
   // Auto-calculate artist earnings when price or artist changes
   const selectedArtist = artists.find(a => a.id === formData.studioArtistId);

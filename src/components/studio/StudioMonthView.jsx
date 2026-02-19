@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { ChevronLeft, ChevronRight, Plus, X } from 'lucide-react';
 import StudioAppointmentModal from './StudioAppointmentModal';
 import StudioAppointmentDetailModal from './StudioAppointmentDetailModal';
+import AddStudioTattooModal from './AddStudioTattooModal';
 
 // Fixed color palette for managed artists (index-based, wraps around)
 const ARTIST_PALETTE = [
@@ -35,7 +36,7 @@ function toMinutes(t) {
   return h * 60 + m;
 }
 
-function StudioMonthView({ appointments, artists, onAddAppointment, onUpdateAppointment, onDeleteAppointment }) {
+function StudioMonthView({ appointments, artists, onAddAppointment, onUpdateAppointment, onDeleteAppointment, onCompleteAppointment }) {
   const [currentDate, setCurrentDate]           = useState(new Date());
   const [isAddModalOpen, setIsAddModalOpen]     = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState(null);
@@ -43,6 +44,8 @@ function StudioMonthView({ appointments, artists, onAddAppointment, onUpdateAppo
   const [editingAppointment, setEditingAppointment]   = useState(null);
   const [selectedDate, setSelectedDate]         = useState(null);
   const [expandedDay, setExpandedDay]           = useState(null);
+  const [isCompleteModalOpen, setIsCompleteModalOpen] = useState(false);
+  const [completingAppointment, setCompletingAppointment] = useState(null);
 
   const currentMonth = currentDate.getMonth();
   const currentYear  = currentDate.getFullYear();
@@ -127,6 +130,22 @@ function StudioMonthView({ appointments, artists, onAddAppointment, onUpdateAppo
     setIsDetailModalOpen(false);
     setEditingAppointment(appointment);
     setIsAddModalOpen(true);
+  };
+
+  const handleCompleteAppointment = (appointment) => {
+    setCompletingAppointment(appointment);
+    setIsCompleteModalOpen(true);
+  };
+
+  const handleSaveCompletedTattoo = (tattooData) => {
+    if (onCompleteAppointment) {
+      onCompleteAppointment(completingAppointment.id, {
+        ...tattooData,
+        studioArtistId: tattooData.studioArtistId || completingAppointment.studioArtistId,
+      });
+    }
+    setIsCompleteModalOpen(false);
+    setCompletingAppointment(null);
   };
 
   // Build calendar grid
@@ -374,6 +393,20 @@ function StudioMonthView({ appointments, artists, onAddAppointment, onUpdateAppo
         artists={artists}
         onEdit={handleEditAppointment}
         onDelete={onDeleteAppointment}
+        onComplete={handleCompleteAppointment}
+      />
+
+      <AddStudioTattooModal
+        isOpen={isCompleteModalOpen}
+        onClose={() => {
+          setIsCompleteModalOpen(false);
+          setCompletingAppointment(null);
+        }}
+        onSave={handleSaveCompletedTattoo}
+        artists={artists}
+        preselectedArtistId={completingAppointment?.studioArtistId || null}
+        preselectedClientName={completingAppointment?.clientName || ''}
+        preselectedDate={completingAppointment?.date || null}
       />
     </div>
   );
