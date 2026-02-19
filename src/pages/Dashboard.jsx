@@ -14,11 +14,11 @@ function Dashboard() {
   const { completeTattoo } = useTattoos();
 
   const handleCompleteTattoo = async (tattooData) => {
-    // Use the hook's completeTattoo which writes to Supabase
+    // completeTattoo writes to Supabase: tattoo insert, appointment status, client stats
     await completeTattoo(
       tattooData,
-      tattooData.appointmentId || null,
-      tattooData.clientId || null
+      tattooData.appointmentId,
+      tattooData.clientId ? parseInt(tattooData.clientId) : null,
     );
   };
 

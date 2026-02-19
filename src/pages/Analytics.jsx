@@ -17,13 +17,28 @@ import StatCard from '../components/analytics/StatCard';
 import RevenueChart from '../components/analytics/RevenueChart';
 import AddExpenseModal from '../components/analytics/AddExpenseModal';
 
+// Helper: get YYYY-MM-DD string in local time
+function toDateStr(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+// Helper: get the date string from an item (handles both "2026-02-18" and "2026-02-18T10:00:00")
+function getItemDate(item, field = 'date') {
+  const val = item[field];
+  if (!val) return '';
+  // If it's already YYYY-MM-DD, use as-is. If it has a T, take the date part.
+  return val.split('T')[0];
+}
+
 function Analytics() {
-  const { tattoos, getTotalRevenue, getTotalEarnings, getTotalSuppliesCost } = useTattoos();
+  const { tattoos } = useTattoos();
   const { 
     expenses, 
     addExpense, 
     deleteExpense, 
-    getTotalExpenses, 
     applyRecurringExpenses
   } = useExpenses();
   
@@ -37,56 +52,64 @@ function Analytics() {
     applyRecurringExpenses(now.getFullYear(), now.getMonth() + 1);
   }, []);
 
-  // ---------- Period Filtering Helpers ----------
+  // ---------- Period Filtering (string-based to avoid timezone bugs) ----------
 
-  const getPeriodBounds = () => {
+  const getPeriodDateRange = () => {
     const now = new Date();
-    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const startOfWeek = new Date(now);
-    startOfWeek.setDate(now.getDate() - now.getDay());
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const startOfYear = new Date(selectedYear, 0, 1);
-    const endOfYear = new Date(selectedYear, 11, 31);
+    const todayStr = toDateStr(now);
 
-    if (selectedPeriod === 'day') return { start: startOfDay, end: now };
-    if (selectedPeriod === 'week') return { start: startOfWeek, end: now };
-    if (selectedPeriod === 'month') return { start: startOfMonth, end: now };
-    if (selectedPeriod === 'year') return { start: startOfYear, end: endOfYear };
-    return { start: new Date(0), end: now }; // all time
+    if (selectedPeriod === 'day') {
+      return { startStr: todayStr, endStr: todayStr };
+    }
+
+    if (selectedPeriod === 'week') {
+      const startOfWeek = new Date(now);
+      startOfWeek.setDate(now.getDate() - now.getDay());
+      return { startStr: toDateStr(startOfWeek), endStr: todayStr };
+    }
+
+    if (selectedPeriod === 'month') {
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      return { startStr: toDateStr(startOfMonth), endStr: todayStr };
+    }
+
+    if (selectedPeriod === 'year') {
+      return { startStr: `${selectedYear}-01-01`, endStr: `${selectedYear}-12-31` };
+    }
+
+    return { startStr: '2000-01-01', endStr: todayStr };
   };
 
   const filterByPeriod = (items, dateField = 'date') => {
-    const { start, end } = getPeriodBounds();
+    const { startStr, endStr } = getPeriodDateRange();
     return items.filter(item => {
-      const d = new Date(item[dateField]);
-      return d >= start && d <= end;
+      const d = getItemDate(item, dateField);
+      return d >= startStr && d <= endStr;
     });
   };
 
-  // ---------- Filtered Data ----------
+  // ---------- All Filtered Data (single source of truth for ALL sections) ----------
 
   const periodTattoos = filterByPeriod(tattoos);
   const periodExpenses = filterByPeriod(expenses);
 
-  const periodRevenue = periodTattoos.reduce((sum, t) => sum + t.price, 0);
-  const periodEarnings = periodTattoos.reduce((sum, t) => sum + t.artistEarnings, 0);
-  const periodSupplies = periodTattoos.reduce((sum, t) => sum + t.suppliesCost, 0);
-  const periodExpensesTotal = periodExpenses.reduce((sum, e) => sum + e.amount, 0);
+  const periodRevenue = periodTattoos.reduce((sum, t) => sum + (t.price || 0), 0);
+  const periodEarnings = periodTattoos.reduce((sum, t) => sum + (t.artistEarnings || 0), 0);
+  const periodSupplies = periodTattoos.reduce((sum, t) => sum + (t.suppliesCost || 0), 0);
+  const periodExpensesTotal = periodExpenses.reduce((sum, e) => sum + (e.amount || 0), 0);
   const periodProfit = periodEarnings - periodExpensesTotal;
   const periodTattooCount = periodTattoos.length;
+  const avgPerTattoo = periodTattooCount > 0 ? Math.round(periodRevenue / periodTattooCount) : 0;
   const profitMargin = periodRevenue > 0 ? Math.round((periodProfit / periodRevenue) * 100) : 0;
 
   // Expense breakdown filtered by period
-  const periodExpensesByCategory = () => {
-    const byCategory = {};
-    periodExpenses.forEach((e) => {
-      if (!byCategory[e.category]) byCategory[e.category] = 0;
-      byCategory[e.category] += e.amount;
-    });
-    return byCategory;
-  };
+  const periodExpensesByCategory = {};
+  periodExpenses.forEach((e) => {
+    if (!periodExpensesByCategory[e.category]) periodExpensesByCategory[e.category] = 0;
+    periodExpensesByCategory[e.category] += e.amount;
+  });
 
-  // Generate chart data for current month
+  // Chart data
   const getMonthChartData = () => {
     const now = new Date();
     const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
@@ -94,66 +117,47 @@ function Analytics() {
 
     for (let day = 1; day <= daysInMonth; day++) {
       const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-      const dayTattoos = tattoos.filter(t => t.date === dateStr);
-      const dayRevenue = dayTattoos.reduce((sum, t) => sum + t.price, 0);
+      const dayTattoos = tattoos.filter(t => getItemDate(t) === dateStr);
+      const dayRevenue = dayTattoos.reduce((sum, t) => sum + (t.price || 0), 0);
 
       if (day % 5 === 0 || day === 1 || day === daysInMonth) {
-        data.push({
-          label: `${day}`,
-          value: dayRevenue
-        });
+        data.push({ label: `${day}`, value: dayRevenue });
       }
     }
-
     return data;
   };
 
-  // Get year options
   const getYearOptions = () => {
     const currentYear = new Date().getFullYear();
-    const years = [];
-    for (let i = 0; i < 5; i++) {
-      years.push(currentYear - i);
-    }
-    return years;
+    return Array.from({ length: 5 }, (_, i) => currentYear - i);
   };
 
-  // Export to CSV
+  // CSV Export
   const handleExportCSV = () => {
     const allTransactions = [
       ...tattoos.map(t => ({
-        date: t.date,
+        date: getItemDate(t),
         type: 'Revenue',
-        description: `Tattoo - ${t.clientName} - ${t.location}`,
+        description: `Tattoo - ${t.clientName || 'Unknown'} - ${t.location || ''}`,
         amount: t.price,
         supplies: t.suppliesCost,
         net: t.artistEarnings
       })),
       ...expenses.map(e => ({
-        date: e.date,
+        date: getItemDate(e),
         type: 'Expense',
-        description: `${e.category} - ${e.notes}`,
+        description: `${e.category} - ${e.notes || ''}`,
         amount: -e.amount,
         supplies: 0,
         net: -e.amount
       }))
-    ].sort((a, b) => new Date(b.date) - new Date(a.date));
+    ].sort((a, b) => b.date.localeCompare(a.date));
 
     const headers = ['Date', 'Type', 'Description', 'Amount', 'Supplies', 'Net'];
     const rows = allTransactions.map(t => [
-      t.date,
-      t.type,
-      `"${t.description}"`,
-      t.amount.toFixed(2),
-      t.supplies.toFixed(2),
-      t.net.toFixed(2)
+      t.date, t.type, `"${t.description}"`, t.amount.toFixed(2), t.supplies.toFixed(2), t.net.toFixed(2)
     ]);
-
-    const csv = [
-      headers.join(','),
-      ...rows.map(row => row.join(','))
-    ].join('\n');
-
+    const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -163,7 +167,9 @@ function Analytics() {
   };
 
   const formatDate = (dateStr) => {
-    const date = new Date(dateStr + 'T00:00:00');
+    if (!dateStr) return '';
+    const d = dateStr.split('T')[0];
+    const date = new Date(d + 'T00:00:00');
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   };
 
@@ -180,7 +186,6 @@ function Analytics() {
           <div className="max-w-7xl mx-auto">
             <div className="flex items-center justify-between mb-6">
               <h1 className="text-2xl md:text-3xl font-bold">Analytics</h1>
-              
               <div className="flex gap-3">
                 <button
                   onClick={() => setIsAddExpenseOpen(true)}
@@ -189,7 +194,6 @@ function Analytics() {
                   <Plus className="w-5 h-5" />
                   <span className="hidden md:inline">Add Expense</span>
                 </button>
-                
                 <button
                   onClick={handleExportCSV}
                   className="flex items-center gap-2 px-4 py-2 bg-accent-primary hover:bg-blue-600 rounded-lg font-semibold transition"
@@ -212,12 +216,9 @@ function Analytics() {
                       : 'bg-bg-primary border border-border-primary text-text-secondary hover:text-text-primary'
                   }`}
                 >
-                  {period === 'day' ? 'Today' : 
-                   period === 'week' ? 'This Week' : 
-                   period === 'month' ? 'This Month' : 'Year'}
+                  {period === 'day' ? 'Today' : period === 'week' ? 'This Week' : period === 'month' ? 'This Month' : 'Year'}
                 </button>
               ))}
-
               {selectedPeriod === 'year' && (
                 <select
                   value={selectedYear}
@@ -235,7 +236,7 @@ function Analytics() {
 
         {/* Content */}
         <div className="max-w-7xl mx-auto p-4 md:p-6 space-y-6">
-          {/* Stats Grid */}
+          {/* Stat Cards */}
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
             <StatCard
               title="Revenue"
@@ -244,7 +245,6 @@ function Analytics() {
               icon={DollarSign}
               color="accent-primary"
             />
-
             <StatCard
               title="Expenses"
               value={`$${periodExpensesTotal.toLocaleString()}`}
@@ -252,18 +252,16 @@ function Analytics() {
               icon={Package}
               color="accent-warning"
             />
-
             <StatCard
               title="Net Profit"
               value={`$${periodProfit.toLocaleString()}`}
-              subtitle={`Earnings minus expenses`}
+              subtitle="Earnings minus expenses"
               icon={periodProfit >= 0 ? TrendingUp : TrendingDown}
               color={periodProfit >= 0 ? 'accent-success' : 'accent-danger'}
             />
-
             <StatCard
               title="Avg per Tattoo"
-              value={`$${periodTattooCount > 0 ? Math.round(periodRevenue / periodTattooCount) : 0}`}
+              value={`$${avgPerTattoo}`}
               subtitle={profitMargin > 0 ? `${profitMargin}% profit margin` : 'No data yet'}
               icon={Percent}
               color="accent-primary"
@@ -272,20 +270,17 @@ function Analytics() {
 
           {/* Revenue Chart */}
           {selectedPeriod === 'month' && (
-            <RevenueChart
-              data={getMonthChartData()}
-              title="Revenue This Month"
-            />
+            <RevenueChart data={getMonthChartData()} title="Revenue This Month" />
           )}
 
-          {/* Expense Breakdown - Filtered by Period */}
+          {/* Expense Breakdown */}
           <div className="bg-bg-secondary rounded-xl border border-border-primary p-6">
             <h2 className="text-2xl font-bold mb-2">Expense Breakdown</h2>
             <p className="text-sm text-text-tertiary mb-6">{periodLabel}</p>
             
-            {Object.keys(periodExpensesByCategory()).length > 0 ? (
+            {Object.keys(periodExpensesByCategory).length > 0 ? (
               <div className="grid md:grid-cols-2 gap-6">
-                {Object.entries(periodExpensesByCategory())
+                {Object.entries(periodExpensesByCategory)
                   .sort(([,a], [,b]) => b - a)
                   .map(([category, amount]) => (
                   <div key={category} className="flex items-center justify-between p-4 bg-bg-primary rounded-lg border border-border-primary">
@@ -295,9 +290,7 @@ function Analytics() {
                         {periodExpenses.filter(e => e.category === category).length} transaction{periodExpenses.filter(e => e.category === category).length !== 1 ? 's' : ''}
                       </div>
                     </div>
-                    <div className="text-2xl font-bold text-accent-warning">
-                      ${amount.toLocaleString()}
-                    </div>
+                    <div className="text-2xl font-bold text-accent-warning">${amount.toLocaleString()}</div>
                   </div>
                 ))}
               </div>
@@ -308,12 +301,12 @@ function Analytics() {
             )}
           </div>
 
-          {/* Recent Transactions - Filtered by Period */}
+          {/* Transactions */}
           <div className="bg-bg-secondary rounded-xl border border-border-primary p-6">
             <h2 className="text-2xl font-bold mb-2">Transactions</h2>
             <p className="text-sm text-text-tertiary mb-6">{periodLabel}</p>
 
-            {/* Tattoos */}
+            {/* Revenue */}
             <div className="mb-8">
               <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                 <TrendingUp className="w-5 h-5 text-accent-success" />
@@ -324,25 +317,21 @@ function Analytics() {
                   {periodTattoos.slice(0, 10).map(tattoo => (
                     <div key={tattoo.id} className="flex items-center justify-between p-4 bg-bg-primary rounded-lg border border-border-primary hover:border-accent-primary/50 transition">
                       <div>
-                        <div className="font-semibold">{tattoo.clientName}</div>
-                        <div className="text-sm text-text-secondary">{formatDate(tattoo.date)} • {tattoo.location}</div>
+                        <div className="font-semibold">{tattoo.clientName || 'Unknown'}</div>
+                        <div className="text-sm text-text-secondary">{formatDate(tattoo.date)} • {tattoo.location || ''}</div>
                       </div>
                       <div className="text-right">
-                        <div className="text-xl font-bold text-accent-success">+${tattoo.price.toLocaleString()}</div>
-                        <div className="text-xs text-text-tertiary">Earnings: ${tattoo.artistEarnings.toLocaleString()}</div>
+                        <div className="text-xl font-bold text-accent-success">+${(tattoo.price || 0).toLocaleString()}</div>
+                        <div className="text-xs text-text-tertiary">Earnings: ${(tattoo.artistEarnings || 0).toLocaleString()}</div>
                       </div>
                     </div>
                   ))}
                   {periodTattoos.length > 10 && (
-                    <div className="text-center text-sm text-text-tertiary py-2">
-                      +{periodTattoos.length - 10} more
-                    </div>
+                    <div className="text-center text-sm text-text-tertiary py-2">+{periodTattoos.length - 10} more</div>
                   )}
                 </div>
               ) : (
-                <div className="text-center py-8 text-text-tertiary">
-                  No tattoos completed {periodLabel === 'Today' ? 'today' : `for ${periodLabel.toLowerCase()}`}
-                </div>
+                <div className="text-center py-8 text-text-tertiary">No tattoos completed for {periodLabel.toLowerCase()}</div>
               )}
             </div>
 
@@ -360,21 +349,15 @@ function Analytics() {
                         <div className="flex items-center gap-2">
                           <div className="font-semibold">{expense.category}</div>
                           {expense.recurring && (
-                            <span className="text-xs px-2 py-1 bg-blue-500/10 text-blue-400 rounded">
-                              Recurring
-                            </span>
+                            <span className="text-xs px-2 py-1 bg-blue-500/10 text-blue-400 rounded">Recurring</span>
                           )}
                         </div>
                         <div className="text-sm text-text-secondary">{formatDate(expense.date)}{expense.notes ? ` • ${expense.notes}` : ''}</div>
                       </div>
                       <div className="flex items-center gap-3">
-                        <div className="text-xl font-bold text-accent-danger">-${expense.amount.toLocaleString()}</div>
+                        <div className="text-xl font-bold text-accent-danger">-${(expense.amount || 0).toLocaleString()}</div>
                         <button
-                          onClick={() => {
-                            if (window.confirm('Delete this expense?')) {
-                              deleteExpense(expense.id);
-                            }
-                          }}
+                          onClick={() => { if (window.confirm('Delete this expense?')) deleteExpense(expense.id); }}
                           className="p-2 bg-accent-danger/20 text-accent-danger hover:bg-accent-danger/30 rounded-lg opacity-0 group-hover:opacity-100 transition"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -383,20 +366,16 @@ function Analytics() {
                     </div>
                   ))}
                   {periodExpenses.length > 10 && (
-                    <div className="text-center text-sm text-text-tertiary py-2">
-                      +{periodExpenses.length - 10} more
-                    </div>
+                    <div className="text-center text-sm text-text-tertiary py-2">+{periodExpenses.length - 10} more</div>
                   )}
                 </div>
               ) : (
-                <div className="text-center py-8 text-text-tertiary">
-                  No expenses recorded {periodLabel === 'Today' ? 'today' : `for ${periodLabel.toLowerCase()}`}
-                </div>
+                <div className="text-center py-8 text-text-tertiary">No expenses for {periodLabel.toLowerCase()}</div>
               )}
             </div>
           </div>
 
-          {/* Year End Summary */}
+          {/* Year Summary */}
           <div className="bg-gradient-to-br from-accent-primary/10 to-bg-secondary p-6 md:p-8 rounded-2xl border border-accent-primary/20">
             <div className="flex items-center gap-3 mb-6">
               <Calendar className="w-6 h-6 text-accent-primary" />
@@ -404,26 +383,30 @@ function Analytics() {
             </div>
 
             {(() => {
-              const yearTattoos = tattoos.filter(t => new Date(t.date).getFullYear() === selectedYear);
-              const yearExpenses = expenses.filter(e => new Date(e.date).getFullYear() === selectedYear);
-              const yearRevenue = yearTattoos.reduce((sum, t) => sum + t.price, 0);
-              const yearEarnings = yearTattoos.reduce((sum, t) => sum + t.artistEarnings, 0);
-              const yearExpTotal = yearExpenses.reduce((sum, e) => sum + e.amount, 0);
+              const yearStart = `${selectedYear}-01-01`;
+              const yearEnd = `${selectedYear}-12-31`;
+              const yearTattoos = tattoos.filter(t => {
+                const d = getItemDate(t);
+                return d >= yearStart && d <= yearEnd;
+              });
+              const yearExpensesList = expenses.filter(e => {
+                const d = getItemDate(e);
+                return d >= yearStart && d <= yearEnd;
+              });
+              const yearRevenue = yearTattoos.reduce((sum, t) => sum + (t.price || 0), 0);
+              const yearEarnings = yearTattoos.reduce((sum, t) => sum + (t.artistEarnings || 0), 0);
+              const yearExpTotal = yearExpensesList.reduce((sum, e) => sum + (e.amount || 0), 0);
               const yearProfit = yearEarnings - yearExpTotal;
 
               return (
                 <div className="grid md:grid-cols-4 gap-6">
                   <div>
                     <div className="text-sm text-text-tertiary mb-2">Total Revenue</div>
-                    <div className="text-3xl font-bold text-accent-primary">
-                      ${yearRevenue.toLocaleString()}
-                    </div>
+                    <div className="text-3xl font-bold text-accent-primary">${yearRevenue.toLocaleString()}</div>
                   </div>
                   <div>
                     <div className="text-sm text-text-tertiary mb-2">Total Expenses</div>
-                    <div className="text-3xl font-bold text-accent-warning">
-                      ${yearExpTotal.toLocaleString()}
-                    </div>
+                    <div className="text-3xl font-bold text-accent-warning">${yearExpTotal.toLocaleString()}</div>
                   </div>
                   <div>
                     <div className="text-sm text-text-tertiary mb-2">Net Profit</div>
@@ -433,9 +416,7 @@ function Analytics() {
                   </div>
                   <div>
                     <div className="text-sm text-text-tertiary mb-2">Tattoos Completed</div>
-                    <div className="text-3xl font-bold">
-                      {yearTattoos.length}
-                    </div>
+                    <div className="text-3xl font-bold">{yearTattoos.length}</div>
                   </div>
                 </div>
               );
@@ -444,7 +425,6 @@ function Analytics() {
         </div>
       </div>
 
-      {/* Add Expense Modal */}
       <AddExpenseModal
         isOpen={isAddExpenseOpen}
         onClose={() => setIsAddExpenseOpen(false)}

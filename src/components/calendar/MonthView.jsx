@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, X } from 'lucide-react';
 import AppointmentModal from './AppointmentModal';
 import AppointmentDetailModal from './AppointmentDetailModal';
 import FinishTattooModal from '../tattoos/FinishTattooModal';
@@ -13,218 +13,336 @@ function MonthView({ appointments, onAddAppointment, onUpdateAppointment, onDele
   const [selectedDate, setSelectedDate] = useState(null);
   const [isFinishTattooOpen, setIsFinishTattooOpen] = useState(false);
   const [completingAppointment, setCompletingAppointment] = useState(null);
+  const [expandedDay, setExpandedDay] = useState(null);
 
-  // Get month and year
   const monthNames = [
     'January', 'February', 'March', 'April', 'May', 'June',
     'July', 'August', 'September', 'October', 'November', 'December'
   ];
+  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   const currentMonth = currentDate.getMonth();
   const currentYear = currentDate.getFullYear();
 
-  // Get first day of month and number of days
   const firstDayOfMonth = new Date(currentYear, currentMonth, 1).getDay();
   const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+  const today = new Date();
+  const todayStr = today.toISOString().split('T')[0];
 
-  // Navigate months
-  const previousMonth = () => {
+  const prevMonth = () => {
     setCurrentDate(new Date(currentYear, currentMonth - 1, 1));
+    setExpandedDay(null);
   };
-
   const nextMonth = () => {
     setCurrentDate(new Date(currentYear, currentMonth + 1, 1));
+    setExpandedDay(null);
   };
 
-  // Get today's date for highlighting
-  const today = new Date();
-  const isToday = (day) => {
-    return (
-      day === today.getDate() &&
-      currentMonth === today.getMonth() &&
-      currentYear === today.getFullYear()
-    );
+  const getDateStr = (day) => {
+    return `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
   };
 
-  // Get appointments for a specific day
   const getAppointmentsForDay = (day) => {
-    const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-    return appointments.filter(apt => apt.date === dateStr);
+    const dateStr = getDateStr(day);
+    return appointments.filter((apt) => apt.date === dateStr);
   };
 
-  // Handle appointment click
-  const handleAppointmentClick = (apt, e) => {
+  const handleDayClick = (day) => {
+    const dateStr = getDateStr(day);
+    const dayAppts = getAppointmentsForDay(day);
+
+    if (dayAppts.length === 0) {
+      setSelectedDate(dateStr);
+      setEditingAppointment(null);
+      setIsAddModalOpen(true);
+    } else if (dayAppts.length === 1) {
+      setSelectedAppointment(dayAppts[0]);
+      setIsDetailModalOpen(true);
+      setExpandedDay(null);
+    } else {
+      setExpandedDay(expandedDay === dateStr ? null : dateStr);
+    }
+  };
+
+  const handleAppointmentClick = (e, appointment) => {
     e.stopPropagation();
-    setSelectedAppointment(apt);
+    setSelectedAppointment(appointment);
     setIsDetailModalOpen(true);
   };
 
-  // Handle day click (for adding appointments)
-  const handleDayClick = (day) => {
-    const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-    setSelectedDate(dateStr);
-    setIsAddModalOpen(true);
-  };
-
-  // Handle save appointment
   const handleSaveAppointment = (appointmentData) => {
     if (editingAppointment) {
       onUpdateAppointment(editingAppointment.id, appointmentData);
-      setEditingAppointment(null);
     } else {
       onAddAppointment(appointmentData);
     }
+    setEditingAppointment(null);
     setSelectedDate(null);
   };
 
-  // Handle edit appointment
-  const handleEditAppointment = (apt) => {
-    setEditingAppointment(apt);
+  const handleEditAppointment = (appointment) => {
+    setIsDetailModalOpen(false);
+    setEditingAppointment(appointment);
     setIsAddModalOpen(true);
   };
 
-  // Handle complete tattoo
-  const handleCompleteTattoo = (apt) => {
-    setCompletingAppointment(apt);
+  const handleCompleteTattoo = (appointment) => {
+    setIsDetailModalOpen(false);
+    setCompletingAppointment(appointment);
     setIsFinishTattooOpen(true);
   };
 
-  // Handle save completed tattoo
   const handleSaveCompletedTattoo = (tattooData) => {
-    // The completeTattoo hook handles everything:
-    // 1. Inserts tattoo record to Supabase
-    // 2. Updates appointment status to 'completed' in Supabase
-    // 3. Updates client stats in Supabase
-    // 4. Updates local state via dispatch
-    onCompleteTattoo(tattooData);
-    
-    // Close modal
+    const completedTattoo = {
+      ...tattooData,
+      clientName: completingAppointment.client,
+      clientId: completingAppointment.clientId,
+      appointmentId: completingAppointment.id,
+    };
+
+    if (onCompleteTattoo) {
+      onCompleteTattoo(completedTattoo);
+    }
+
     setIsFinishTattooOpen(false);
     setCompletingAppointment(null);
+    setExpandedDay(null);
   };
 
-  // Generate calendar days
+  const toMinutes = (t) => {
+    if (!t) return 0;
+    const match = t.match(/(\d+):(\d+)\s*(AM|PM)/i);
+    if (!match) return 0;
+    let h = parseInt(match[1]);
+    const m = parseInt(match[2]);
+    const period = match[3].toUpperCase();
+    if (period === 'PM' && h !== 12) h += 12;
+    if (period === 'AM' && h === 12) h = 0;
+    return h * 60 + m;
+  };
+
+  // Build calendar grid
   const calendarDays = [];
-  
-  // Empty cells before first day of month
   for (let i = 0; i < firstDayOfMonth; i++) {
-    calendarDays.push(<div key={`empty-${i}`} className="h-24 md:h-32 bg-bg-tertiary/50"></div>);
+    calendarDays.push(null);
   }
-
-  // Days of the month
   for (let day = 1; day <= daysInMonth; day++) {
-    const dayAppointments = getAppointmentsForDay(day);
-    const isTodayDate = isToday(day);
-
-    calendarDays.push(
-      <div
-        key={day}
-        onClick={() => handleDayClick(day)}
-        className={`h-24 md:h-32 border border-border-primary p-2 hover:bg-bg-secondary transition cursor-pointer ${
-          isTodayDate ? 'bg-accent-primary/10 border-accent-primary' : 'bg-bg-tertiary'
-        }`}
-      >
-        <div className={`text-sm md:text-base font-semibold mb-1 ${isTodayDate ? 'text-accent-primary' : 'text-text-primary'}`}>
-          {day}
-        </div>
-        
-        <div className="space-y-1">
-          {dayAppointments.slice(0, 2).map((apt) => (
-            <div
-              key={apt.id}
-              onClick={(e) => handleAppointmentClick(apt, e)}
-              className={`text-xs px-2 py-1 rounded truncate hover:scale-105 transition ${
-                apt.type === 'tattoo' 
-                  ? 'bg-accent-primary/20 text-accent-primary border border-accent-primary/30'
-                  : 'bg-accent-warning/20 text-accent-warning border border-accent-warning/30'
-              }`}
-            >
-              {apt.time} - {apt.client}
-            </div>
-          ))}
-          
-          {dayAppointments.length > 2 && (
-            <div className="text-xs text-text-tertiary px-2">
-              +{dayAppointments.length - 2} more
-            </div>
-          )}
-        </div>
-      </div>
-    );
+    calendarDays.push(day);
   }
 
   return (
     <div className="min-h-screen bg-bg-primary text-text-primary">
       {/* Header */}
       <div className="bg-bg-secondary border-b border-border-primary p-4 md:p-6">
-        <div className="max-w-7xl mx-auto flex items-center justify-between flex-wrap gap-4">
-          <div className="flex items-center gap-4 flex-wrap">
-            <h1 className="text-2xl md:text-3xl font-bold">Calendar</h1>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={previousMonth}
-                className="p-2 hover:bg-bg-tertiary rounded-lg transition"
-              >
+        <div className="max-w-7xl mx-auto">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-4">
+              <button onClick={prevMonth} className="p-2 hover:bg-bg-tertiary rounded-lg transition">
                 <ChevronLeft className="w-5 h-5" />
               </button>
-              <span className="text-lg md:text-xl font-semibold px-4">
+              <h1 className="text-xl md:text-2xl font-bold">
                 {monthNames[currentMonth]} {currentYear}
-              </span>
-              <button
-                onClick={nextMonth}
-                className="p-2 hover:bg-bg-tertiary rounded-lg transition"
-              >
+              </h1>
+              <button onClick={nextMonth} className="p-2 hover:bg-bg-tertiary rounded-lg transition">
                 <ChevronRight className="w-5 h-5" />
               </button>
             </div>
+
+            <button
+              onClick={() => {
+                setSelectedDate(todayStr);
+                setEditingAppointment(null);
+                setIsAddModalOpen(true);
+              }}
+              className="flex items-center gap-2 px-4 py-2 bg-accent-primary hover:bg-blue-600 rounded-lg font-semibold transition"
+            >
+              <Plus className="w-5 h-5" />
+              <span className="hidden md:inline">Add Appointment</span>
+            </button>
           </div>
 
-          <button 
-            onClick={() => {
-              setSelectedDate(null);
-              setEditingAppointment(null);
-              setIsAddModalOpen(true);
-            }}
-            className="flex items-center gap-2 px-4 py-2 bg-accent-primary hover:bg-blue-600 rounded-lg font-semibold transition"
-          >
-            <Plus className="w-5 h-5" />
-            <span className="hidden md:inline">Add Appointment</span>
-            <span className="md:hidden">Add</span>
-          </button>
+          {/* Day headers */}
+          <div className="grid grid-cols-7 gap-1">
+            {dayNames.map((day) => (
+              <div key={day} className="text-center text-xs font-semibold text-text-tertiary py-2">
+                {day}
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
       {/* Calendar Grid */}
-      <div className="max-w-7xl mx-auto p-4 md:p-6">
-        {/* Day headers */}
-        <div className="grid grid-cols-7 gap-px mb-px">
-          {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
-            <div
-              key={day}
-              className="bg-bg-secondary py-2 text-center text-sm md:text-base font-semibold text-text-secondary"
-            >
-              {day}
-            </div>
-          ))}
+      <div className="max-w-7xl mx-auto p-2 md:p-6">
+        <div className="grid grid-cols-7 gap-1">
+          {calendarDays.map((day, index) => {
+            if (day === null) {
+              return <div key={`empty-${index}`} className="min-h-[80px] md:min-h-[100px]" />;
+            }
+
+            const dateStr = getDateStr(day);
+            const dayAppts = getAppointmentsForDay(day);
+            const isToday = dateStr === todayStr;
+            const isExpanded = expandedDay === dateStr;
+            const maxVisible = 2;
+            const hiddenCount = dayAppts.length - maxVisible;
+
+            return (
+              <div
+                key={day}
+                onClick={() => handleDayClick(day)}
+                className={`min-h-[80px] md:min-h-[100px] p-1 md:p-2 rounded-lg border cursor-pointer transition hover:border-accent-primary/50 ${
+                  isToday
+                    ? 'border-accent-primary bg-accent-primary/5'
+                    : 'border-border-primary hover:bg-bg-secondary'
+                } ${isExpanded ? 'ring-2 ring-accent-primary bg-accent-primary/10' : ''}`}
+              >
+                <div className={`text-sm font-semibold mb-1 ${
+                  isToday ? 'text-accent-primary' : 'text-text-secondary'
+                }`}>
+                  {day}
+                </div>
+
+                <div className="space-y-1">
+                  {dayAppts.slice(0, maxVisible).map((apt) => (
+                    <div
+                      key={apt.id}
+                      onClick={(e) => handleAppointmentClick(e, apt)}
+                      className={`text-xs px-1.5 py-1 rounded truncate cursor-pointer transition hover:opacity-80 ${
+                        apt.status === 'completed'
+                          ? 'bg-accent-success/20 text-accent-success'
+                          : apt.type === 'consult'
+                          ? 'bg-amber-500/20 text-amber-400'
+                          : 'bg-accent-primary/20 text-accent-primary'
+                      }`}
+                    >
+                      <span className="hidden md:inline">{apt.time} </span>
+                      {apt.client}
+                    </div>
+                  ))}
+                  {hiddenCount > 0 && (
+                    <div className="text-xs text-accent-primary font-semibold px-1.5 cursor-pointer hover:underline">
+                      +{hiddenCount} more
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
 
-        {/* Calendar days */}
-        <div className="grid grid-cols-7 gap-px bg-border-primary">
-          {calendarDays}
-        </div>
+        {/* Expanded Day Panel */}
+        {expandedDay && (
+          <div className="mt-4 bg-bg-secondary rounded-xl border border-accent-primary/30 p-4 md:p-6 animate-in slide-in-from-top">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold">
+                {new Date(expandedDay + 'T00:00:00').toLocaleDateString('en-US', {
+                  weekday: 'long',
+                  month: 'long',
+                  day: 'numeric',
+                })}
+                <span className="text-sm text-text-tertiary font-normal ml-3">
+                  {appointments.filter((a) => a.date === expandedDay).length} appointment{appointments.filter((a) => a.date === expandedDay).length !== 1 ? 's' : ''}
+                </span>
+              </h2>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedDate(expandedDay);
+                    setEditingAppointment(null);
+                    setIsAddModalOpen(true);
+                  }}
+                  className="flex items-center gap-2 px-3 py-2 bg-accent-primary hover:bg-blue-600 rounded-lg text-sm font-semibold transition"
+                >
+                  <Plus className="w-4 h-4" />
+                  Add
+                </button>
+                <button
+                  onClick={() => setExpandedDay(null)}
+                  className="p-2 hover:bg-bg-tertiary rounded-lg transition"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              {appointments
+                .filter((apt) => apt.date === expandedDay)
+                .sort((a, b) => toMinutes(a.time) - toMinutes(b.time))
+                .map((apt) => (
+                  <div
+                    key={apt.id}
+                    onClick={() => {
+                      setSelectedAppointment(apt);
+                      setIsDetailModalOpen(true);
+                    }}
+                    className={`flex items-center justify-between p-4 rounded-lg border cursor-pointer transition hover:border-accent-primary/50 ${
+                      apt.status === 'completed'
+                        ? 'bg-accent-success/5 border-accent-success/30'
+                        : 'bg-bg-primary border-border-primary'
+                    }`}
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="text-center min-w-[60px]">
+                        <div className="text-sm font-bold">{apt.time || 'TBD'}</div>
+                        <div className="text-xs text-text-tertiary">
+                          {apt.duration >= 60
+                            ? `${Math.floor(apt.duration / 60)}h${apt.duration % 60 > 0 ? ` ${apt.duration % 60}m` : ''}`
+                            : `${apt.duration}m`}
+                        </div>
+                      </div>
+
+                      <div className={`w-1 h-10 rounded-full ${
+                        apt.status === 'completed'
+                          ? 'bg-accent-success'
+                          : apt.type === 'consult'
+                          ? 'bg-amber-400'
+                          : 'bg-accent-primary'
+                      }`} />
+
+                      <div>
+                        <div className="font-semibold">{apt.client}</div>
+                        <div className="text-sm text-text-secondary">
+                          {apt.type === 'consult' ? 'Consultation' : 'Tattoo Session'}
+                          {apt.status === 'completed' && ' • Completed ✓'}
+                        </div>
+                        {apt.notes && (
+                          <div className="text-xs text-text-tertiary mt-1 truncate max-w-[300px]">
+                            {apt.notes}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {apt.phone && (
+                      <div className="hidden md:block text-sm text-text-tertiary">
+                        {apt.phone}
+                      </div>
+                    )}
+                  </div>
+                ))}
+            </div>
+          </div>
+        )}
 
         {/* Legend */}
-        <div className="mt-6 flex items-center gap-6 text-sm flex-wrap">
+        <div className="flex flex-wrap gap-6 mt-6 px-2">
           <div className="flex items-center gap-2">
-            <div className="w-4 h-4 bg-accent-primary/20 border border-accent-primary/30 rounded"></div>
-            <span className="text-text-secondary">Tattoo Session</span>
+            <div className="w-4 h-4 bg-accent-primary/20 border border-accent-primary rounded" />
+            <span className="text-text-secondary text-sm">Tattoo</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-4 h-4 bg-accent-warning/20 border border-accent-warning/30 rounded"></div>
-            <span className="text-text-secondary">Consultation</span>
+            <div className="w-4 h-4 bg-amber-500/20 border border-amber-400 rounded" />
+            <span className="text-text-secondary text-sm">Consultation</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-4 h-4 bg-accent-primary border-2 border-accent-primary rounded"></div>
-            <span className="text-text-secondary">Today</span>
+            <div className="w-4 h-4 bg-accent-success/20 border border-accent-success rounded" />
+            <span className="text-text-secondary text-sm">Completed</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 bg-accent-primary border-2 border-accent-primary rounded" />
+            <span className="text-text-secondary text-sm">Today</span>
           </div>
         </div>
       </div>
