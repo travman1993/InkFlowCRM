@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Landing from './pages/Landing';
 import Dashboard from './pages/Dashboard';
@@ -16,19 +17,19 @@ import Contact from './pages/Contact';
 import Privacy from './pages/Privacy';
 import Terms from './pages/Terms';
 
-// Blog posts
-import ReduceNoShows from './pages/blog/ReduceNoShows';
-import AftercareEmails from './pages/blog/AftercareEmails';
-import TattooPricing from './pages/blog/TattooPricing';
-import CommissionVsBoothRent from './pages/blog/CommissionVsBoothRent';
-import RepeatClients from './pages/blog/RepeatClients';
-import TaxTips from './pages/blog/TaxTips';
-import DifficultConversations from './pages/blog/DifficultConversations';
-import InstagramGrowth from './pages/blog/InstagramGrowth';
-import ManagingArtists from './pages/blog/ManagingArtists';
-import SupplyCosts from './pages/blog/SupplyCosts';
-import ConsultationProcess from './pages/blog/ConsultationProcess';
-import EmailMarketing from './pages/blog/EmailMarketing';
+// Blog posts — lazy loaded so they don't bloat the main bundle
+const ReduceNoShows = lazy(() => import('./pages/blog/ReduceNoShows'));
+const AftercareEmails = lazy(() => import('./pages/blog/AftercareEmails'));
+const TattooPricing = lazy(() => import('./pages/blog/TattooPricing'));
+const CommissionVsBoothRent = lazy(() => import('./pages/blog/CommissionVsBoothRent'));
+const RepeatClients = lazy(() => import('./pages/blog/RepeatClients'));
+const TaxTips = lazy(() => import('./pages/blog/TaxTips'));
+const DifficultConversations = lazy(() => import('./pages/blog/DifficultConversations'));
+const InstagramGrowth = lazy(() => import('./pages/blog/InstagramGrowth'));
+const ManagingArtists = lazy(() => import('./pages/blog/ManagingArtists'));
+const SupplyCosts = lazy(() => import('./pages/blog/SupplyCosts'));
+const ConsultationProcess = lazy(() => import('./pages/blog/ConsultationProcess'));
+const EmailMarketing = lazy(() => import('./pages/blog/EmailMarketing'));
 
 function App() {
   return (
@@ -53,19 +54,19 @@ function App() {
         <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
         <Route path="/studio/dashboard" element={<ProtectedRoute><StudioDashboard /></ProtectedRoute>} />
 
-        {/* Blog posts */}
-        <Route path="/blog/reduce-no-shows" element={<ReduceNoShows />} />
-        <Route path="/blog/aftercare-emails" element={<AftercareEmails />} />
-        <Route path="/blog/tattoo-pricing" element={<TattooPricing />} />
-        <Route path="/blog/commission-vs-booth-rent" element={<CommissionVsBoothRent />} />
-        <Route path="/blog/repeat-clients" element={<RepeatClients />} />
-        <Route path="/blog/tax-tips" element={<TaxTips />} />
-        <Route path="/blog/difficult-conversations" element={<DifficultConversations />} />
-        <Route path="/blog/instagram-growth" element={<InstagramGrowth />} />
-        <Route path="/blog/managing-artists" element={<ManagingArtists />} />
-        <Route path="/blog/supply-costs" element={<SupplyCosts />} />
-        <Route path="/blog/consultation-process" element={<ConsultationProcess />} />
-        <Route path="/blog/email-marketing" element={<EmailMarketing />} />
+        {/* Blog posts — loaded on demand */}
+        <Route path="/blog/reduce-no-shows" element={<Suspense fallback={null}><ReduceNoShows /></Suspense>} />
+        <Route path="/blog/aftercare-emails" element={<Suspense fallback={null}><AftercareEmails /></Suspense>} />
+        <Route path="/blog/tattoo-pricing" element={<Suspense fallback={null}><TattooPricing /></Suspense>} />
+        <Route path="/blog/commission-vs-booth-rent" element={<Suspense fallback={null}><CommissionVsBoothRent /></Suspense>} />
+        <Route path="/blog/repeat-clients" element={<Suspense fallback={null}><RepeatClients /></Suspense>} />
+        <Route path="/blog/tax-tips" element={<Suspense fallback={null}><TaxTips /></Suspense>} />
+        <Route path="/blog/difficult-conversations" element={<Suspense fallback={null}><DifficultConversations /></Suspense>} />
+        <Route path="/blog/instagram-growth" element={<Suspense fallback={null}><InstagramGrowth /></Suspense>} />
+        <Route path="/blog/managing-artists" element={<Suspense fallback={null}><ManagingArtists /></Suspense>} />
+        <Route path="/blog/supply-costs" element={<Suspense fallback={null}><SupplyCosts /></Suspense>} />
+        <Route path="/blog/consultation-process" element={<Suspense fallback={null}><ConsultationProcess /></Suspense>} />
+        <Route path="/blog/email-marketing" element={<Suspense fallback={null}><EmailMarketing /></Suspense>} />
       </Routes>
     </Router>
   );

@@ -10,7 +10,6 @@ export function AuthProvider({ children }) {
 
   // Fetch the artist profile for the logged-in user
   const fetchArtist = async (userId) => {
-    console.log('[AuthContext] fetchArtist called for:', userId);
     try {
       const { data, error } = await supabase
         .from('artists')
@@ -18,15 +17,9 @@ export function AuthProvider({ children }) {
         .eq('user_id', userId)
         .single();
 
-      console.log('[AuthContext] fetchArtist result:', data, error);
-
-      if (error) {
-        console.error('[AuthContext] fetchArtist error:', error);
-        return null;
-      }
+      if (error) return null;
       return data;
     } catch (err) {
-      console.error('[AuthContext] fetchArtist unexpected error:', err);
       return null;
     }
   };
@@ -36,21 +29,17 @@ export function AuthProvider({ children }) {
 
     // 1. Get the initial session and fetch artist
     const initAuth = async () => {
-      console.log('[AuthContext] initAuth starting...');
       try {
         const { data: { session } } = await supabase.auth.getSession();
-        console.log('[AuthContext] getSession result:', session ? 'HAS SESSION' : 'NO SESSION');
 
         if (session?.user && isMounted) {
           setUser(session.user);
           const artistData = await fetchArtist(session.user.id);
-          console.log('[AuthContext] artist loaded:', artistData);
           if (isMounted) setArtist(artistData);
         }
       } catch (err) {
-        console.error('[AuthContext] initAuth error:', err);
+        // session load failed, user stays logged out
       } finally {
-        console.log('[AuthContext] initAuth done, setting loading = false');
         if (isMounted) setLoading(false);
       }
     };
@@ -61,8 +50,7 @@ export function AuthProvider({ children }) {
     //    Instead, just update user state. The DB fetch happens via the
     //    separate useEffect below that watches `user`.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        console.log('[AuthContext] onAuthStateChange event:', event);
+      (_event, session) => {
         if (session?.user) {
           setUser(session.user);
         } else {
@@ -87,10 +75,8 @@ export function AuthProvider({ children }) {
     let cancelled = false;
 
     const loadArtist = async () => {
-      console.log('[AuthContext] loadArtist triggered for user:', user.id);
       const artistData = await fetchArtist(user.id);
       if (!cancelled) {
-        console.log('[AuthContext] loadArtist setting artist:', artistData);
         setArtist(artistData);
         setLoading(false);
       }

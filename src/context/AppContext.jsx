@@ -22,6 +22,7 @@ const initialState = {
   expenses: [],
   recurringTemplates: [],
   loaded: false,
+  loadError: null,
 };
 
 // ============================================================
@@ -32,7 +33,10 @@ function appReducer(state, action) {
   switch (action.type) {
     // ---------- HYDRATE FROM DB ----------
     case 'LOAD_ALL_DATA':
-      return { ...state, ...action.payload, loaded: true };
+      return { ...state, ...action.payload, loaded: true, loadError: null };
+
+    case 'LOAD_ERROR':
+      return { ...state, loaded: true, loadError: action.payload };
 
     // ---------- SETTINGS ----------
     case 'UPDATE_SETTINGS':
@@ -310,46 +314,56 @@ export function AppProvider({ children }) {
     if (!artist) return;
 
     const loadData = async () => {
-      const [
-        { data: appointments },
-        { data: clients },
-        { data: tattoos },
-        { data: expenses },
-        { data: templates },
-      ] = await Promise.all([
-        supabase.from('appointments').select('*').eq('artist_id', artist.id).order('scheduled_date', { ascending: true }),
-        supabase.from('clients').select('*').eq('artist_id', artist.id).order('name'),
-        supabase.from('tattoos').select('*').eq('artist_id', artist.id).order('date_completed', { ascending: false }),
-        supabase.from('expenses').select('*').eq('artist_id', artist.id).order('date', { ascending: false }),
-        supabase.from('recurring_templates').select('*').eq('artist_id', artist.id),
-      ]);
+      try {
+        const [
+          { data: appointments, error: apptErr },
+          { data: clients, error: clientErr },
+          { data: tattoos, error: tattooErr },
+          { data: expenses, error: expenseErr },
+          { data: templates, error: templateErr },
+        ] = await Promise.all([
+          supabase.from('appointments').select('*').eq('artist_id', artist.id).order('scheduled_date', { ascending: true }),
+          supabase.from('clients').select('*').eq('artist_id', artist.id).order('name'),
+          supabase.from('tattoos').select('*').eq('artist_id', artist.id).order('date_completed', { ascending: false }),
+          supabase.from('expenses').select('*').eq('artist_id', artist.id).order('date', { ascending: false }),
+          supabase.from('recurring_templates').select('*').eq('artist_id', artist.id),
+        ]);
 
-      dispatch({
-        type: 'LOAD_ALL_DATA',
-        payload: {
-          settings: {
-            paymentModel: artist.pay_model || 'booth_rent',
-            boothRentAmount: parseFloat(artist.booth_rent_amount) || 0,
-            commissionRate: parseFloat(artist.commission_rate) || 0.60,
-            name: artist.name || '',
-            studioName: artist.studio_name || '',
-            phone: artist.phone || '',
-            email: artist.email || '',
+        const firstError = apptErr || clientErr || tattooErr || expenseErr || templateErr;
+        if (firstError) {
+          dispatch({ type: 'LOAD_ERROR', payload: 'Failed to load your data. Please refresh the page.' });
+          return;
+        }
+
+        dispatch({
+          type: 'LOAD_ALL_DATA',
+          payload: {
+            settings: {
+              paymentModel: artist.pay_model || 'booth_rent',
+              boothRentAmount: parseFloat(artist.booth_rent_amount) || 0,
+              commissionRate: parseFloat(artist.commission_rate) || 0.60,
+              name: artist.name || '',
+              studioName: artist.studio_name || '',
+              phone: artist.phone || '',
+              email: artist.email || '',
+            },
+            appointments: (appointments || []).map(mapAppointment),
+            clients: (clients || []).map(mapClient),
+            tattoos: (tattoos || []).map(mapTattoo),
+            expenses: (expenses || []).map(mapExpense),
+            recurringTemplates: (templates || []).map(mapTemplate),
           },
-          appointments: (appointments || []).map(mapAppointment),
-          clients: (clients || []).map(mapClient),
-          tattoos: (tattoos || []).map(mapTattoo),
-          expenses: (expenses || []).map(mapExpense),
-          recurringTemplates: (templates || []).map(mapTemplate),
-        },
-      });
+        });
+      } catch (err) {
+        dispatch({ type: 'LOAD_ERROR', payload: 'Failed to load your data. Please refresh the page.' });
+      }
     };
 
     loadData();
   }, [artist]);
 
   return (
-    <AppContext.Provider value={{ state, dispatch, artistId: artist?.id }}>
+    <AppContext.Provider value={{ state, dispatch, artistId: artist?.id, loaded: state.loaded, loadError: state.loadError }}>
       {children}
     </AppContext.Provider>
   );

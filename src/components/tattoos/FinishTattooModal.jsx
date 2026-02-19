@@ -54,16 +54,13 @@ function FinishTattooModal({ isOpen, onClose, onSave, appointment = null, client
 
   const handleImageUpload = (e) => {
     const files = Array.from(e.target.files);
-    
-    // Create preview URLs
     const previews = files.map(file => URL.createObjectURL(file));
     setImagePreviews([...imagePreviews, ...previews]);
-    
-    // Store actual files (in production, you'd upload these to Supabase Storage)
     setFormData({ ...formData, images: [...formData.images, ...files] });
   };
 
   const removeImage = (index) => {
+    URL.revokeObjectURL(imagePreviews[index]);
     const newPreviews = imagePreviews.filter((_, i) => i !== index);
     const newImages = formData.images.filter((_, i) => i !== index);
     setImagePreviews(newPreviews);
@@ -97,8 +94,9 @@ function FinishTattooModal({ isOpen, onClose, onSave, appointment = null, client
     
     onSave(tattooData);
     onClose();
-    
+
     // Reset form
+    imagePreviews.forEach(url => URL.revokeObjectURL(url));
     setFormData({
       clientId: '',
       clientName: '',

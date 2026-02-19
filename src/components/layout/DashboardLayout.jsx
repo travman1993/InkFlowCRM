@@ -11,11 +11,13 @@ import {
   Droplets,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { useAppContext } from '../../context/AppContext';
 
 function DashboardLayout({ children }) {
   const navigate = useNavigate();
   const location = useLocation();
   const { signOut, artist } = useAuth();
+  const { loaded, loadError } = useAppContext();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const navItems = [
@@ -148,7 +150,25 @@ function DashboardLayout({ children }) {
 
       {/* Main Content */}
       <main className="flex-1 lg:ml-0 mt-14 lg:mt-0">
-        {children}
+        {loadError ? (
+          <div className="flex items-center justify-center min-h-screen p-6">
+            <div className="bg-bg-secondary border border-accent-danger/30 rounded-xl p-8 max-w-md w-full text-center">
+              <p className="text-accent-danger font-semibold mb-4">{loadError}</p>
+              <button
+                onClick={() => window.location.reload()}
+                className="px-6 py-3 bg-accent-primary hover:bg-blue-600 rounded-lg font-semibold transition"
+              >
+                Refresh Page
+              </button>
+            </div>
+          </div>
+        ) : !loaded ? (
+          <div className="flex items-center justify-center min-h-screen">
+            <div className="w-8 h-8 border-2 border-accent-primary border-t-transparent rounded-full animate-spin" />
+          </div>
+        ) : (
+          children
+        )}
       </main>
     </div>
   );

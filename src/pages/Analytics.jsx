@@ -164,6 +164,7 @@ function Analytics() {
     a.href = url;
     a.download = `inkflow_transactions_${selectedYear}.csv`;
     a.click();
+    window.URL.revokeObjectURL(url);
   };
 
   const formatDate = (dateStr) => {

@@ -18,6 +18,7 @@ Sarah Johnson,555-987-6543,sarah@email.com,1985-12-03,First timer,Sensitive skin
     a.href = url;
     a.download = 'client_import_template.csv';
     a.click();
+    window.URL.revokeObjectURL(url);
   };
 
   const handleFileUpload = (e) => {

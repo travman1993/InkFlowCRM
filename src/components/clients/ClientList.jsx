@@ -1,14 +1,18 @@
 import { useState } from 'react';
-import { Search, Plus, Upload, Phone, Mail, Calendar, DollarSign } from 'lucide-react';
+import { Search, Plus, Upload, Phone, Mail } from 'lucide-react';
 import { Link } from 'react-router-dom';
+
+const PAGE_SIZE = 20;
 
 function ClientList({ clients, onSearch, onAddClick, onBulkImportClick }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('name'); // name, lastVisit, totalSpent
+  const [currentPage, setCurrentPage] = useState(1);
 
   const handleSearch = (e) => {
     const query = e.target.value;
     setSearchQuery(query);
+    setCurrentPage(1); // reset to first page on new search
     onSearch(query);
   };
 
@@ -25,6 +29,9 @@ function ClientList({ clients, onSearch, onAddClick, onBulkImportClick }) {
     }
     return 0;
   });
+
+  const totalPages = Math.ceil(sortedClients.length / PAGE_SIZE);
+  const paginatedClients = sortedClients.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   const formatDate = (dateStr) => {
     if (!dateStr) return 'Never';
@@ -73,7 +80,7 @@ function ClientList({ clients, onSearch, onAddClick, onBulkImportClick }) {
 
             <select
               value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
+              onChange={(e) => { setSortBy(e.target.value); setCurrentPage(1); }}
               className="px-4 py-3 bg-bg-primary border border-border-primary rounded-lg focus:outline-none focus:border-accent-primary transition"
             >
               <option value="name">Sort by Name</option>
@@ -122,7 +129,7 @@ function ClientList({ clients, onSearch, onAddClick, onBulkImportClick }) {
           </div>
         ) : (
           <div className="grid gap-4">
-            {sortedClients.map((client) => (
+            {paginatedClients.map((client) => (
               <Link
                 key={client.id}
                 to={`/clients/${client.id}`}
@@ -179,6 +186,31 @@ function ClientList({ clients, onSearch, onAddClick, onBulkImportClick }) {
                 </div>
               </Link>
             ))}
+          </div>
+        )}
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between mt-6 pt-6 border-t border-border-primary">
+            <p className="text-sm text-text-secondary">
+              Showing {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, sortedClients.length)} of {sortedClients.length} clients
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setCurrentPage(p => p - 1)}
+                disabled={currentPage === 1}
+                className="px-4 py-2 bg-bg-secondary border border-border-primary rounded-lg font-semibold text-sm transition hover:bg-bg-tertiary disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Previous
+              </button>
+              <button
+                onClick={() => setCurrentPage(p => p + 1)}
+                disabled={currentPage === totalPages}
+                className="px-4 py-2 bg-bg-secondary border border-border-primary rounded-lg font-semibold text-sm transition hover:bg-bg-tertiary disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Next
+              </button>
+            </div>
           </div>
         )}
       </div>
