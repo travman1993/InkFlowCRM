@@ -21,6 +21,7 @@ const initialState = {
   tattoos: [],
   expenses: [],
   recurringTemplates: [],
+  followUpTasks: [],
   loaded: false,
   loadError: null,
 };
@@ -182,6 +183,23 @@ function appReducer(state, action) {
         ),
       };
 
+    // ---------- FOLLOW-UP TASKS ----------
+    case 'ADD_FOLLOW_UP_TASKS':
+      return {
+        ...state,
+        followUpTasks: [...state.followUpTasks, ...action.payload],
+      };
+
+    case 'UPDATE_FOLLOW_UP_TASK':
+      return {
+        ...state,
+        followUpTasks: state.followUpTasks.map((t) =>
+          t.id === action.payload.id
+            ? { ...t, ...action.payload.data }
+            : t
+        ),
+      };
+
     // ---------- COMPOUND: COMPLETE TATTOO ----------
     case 'COMPLETE_TATTOO': {
       const { tattooData, appointmentId, clientId } = action.payload;
@@ -301,6 +319,24 @@ function mapTemplate(row) {
   };
 }
 
+function mapFollowUpTask(row) {
+  return {
+    id: row.id,
+    artistId: row.artist_id,
+    clientName: row.client_name,
+    clientEmail: row.client_email || '',
+    tattooId: row.tattoo_id,
+    taskType: row.task_type,
+    taskLabel: row.task_label,
+    dueDate: row.due_date,
+    status: row.status,
+    emailSubject: row.email_subject || '',
+    emailBody: row.email_body || '',
+    completedAt: row.completed_at || null,
+    createdAt: row.created_at,
+  };
+}
+
 // ============================================================
 // PROVIDER
 // ============================================================
@@ -335,6 +371,19 @@ export function AppProvider({ children }) {
           return;
         }
 
+        // Load follow-up tasks separately so a missing table never blocks the main app load
+        let followUpTasks = [];
+        try {
+          const { data: tasks } = await supabase
+            .from('follow_up_tasks')
+            .select('*')
+            .eq('artist_id', artist.id)
+            .order('due_date', { ascending: true });
+          followUpTasks = (tasks || []).map(mapFollowUpTask);
+        } catch {
+          // Table may not exist yet — tasks will be empty until SQL is run
+        }
+
         dispatch({
           type: 'LOAD_ALL_DATA',
           payload: {
@@ -352,6 +401,7 @@ export function AppProvider({ children }) {
             tattoos: (tattoos || []).map(mapTattoo),
             expenses: (expenses || []).map(mapExpense),
             recurringTemplates: (templates || []).map(mapTemplate),
+            followUpTasks,
           },
         });
       } catch (err) {

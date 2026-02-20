@@ -1,5 +1,20 @@
 import { useAppContext } from '../context/AppContext';
 import { supabase } from '../lib/supabase';
+import { generateEmailContent } from './useFollowUpTasks';
+
+const FOLLOW_UP_SCHEDULE = [
+  { type: 'day1',       daysAfter: 1,  label: 'Day 1 Aftercare Email' },
+  { type: 'day3',       daysAfter: 3,  label: '3-Day Healing Check-In' },
+  { type: 'week1',      daysAfter: 10, label: '1-Week Follow-Up' },
+  { type: 'biweekly_1', daysAfter: 24, label: '3-Week Touchpoint' },
+  { type: 'biweekly_2', daysAfter: 38, label: '5-Week Touchpoint' },
+];
+
+function addDays(dateStr, days) {
+  const d = new Date(dateStr + 'T12:00:00');
+  d.setDate(d.getDate() + days);
+  return d.toISOString().split('T')[0];
+}
 
 export function useTattoos() {
   const { state, dispatch, artistId } = useAppContext();
@@ -130,6 +145,59 @@ export function useTattoos() {
         clientId,
       },
     });
+
+    // 5. Generate follow-up tasks — wrapped in try/catch so it never blocks tattoo completion
+    try {
+      const { settings, clients } = state;
+      const clientRecord = clients.find(c => c.id === clientId || c.id === parseInt(clientId));
+      const clientEmail = clientRecord?.email || '';
+      const artistName = settings.name || '';
+      const shopName = settings.studioName || '';
+      const completionDate = mapped.date || new Date().toISOString().split('T')[0];
+
+      const taskRows = FOLLOW_UP_SCHEDULE.map(({ type, daysAfter, label }) => {
+        const { subject, body } = generateEmailContent(type, mapped.clientName, artistName, shopName);
+        return {
+          artist_id: artistId,
+          client_name: mapped.clientName,
+          client_email: clientEmail,
+          tattoo_id: mapped.id,
+          task_type: type,
+          task_label: label,
+          due_date: addDays(completionDate, daysAfter),
+          status: 'pending',
+          email_subject: subject,
+          email_body: body,
+        };
+      });
+
+      const { data: taskData } = await supabase
+        .from('follow_up_tasks')
+        .insert(taskRows)
+        .select();
+
+      if (taskData) {
+        const mappedTasks = taskData.map(row => ({
+          id: row.id,
+          artistId: row.artist_id,
+          clientName: row.client_name,
+          clientEmail: row.client_email || '',
+          tattooId: row.tattoo_id,
+          taskType: row.task_type,
+          taskLabel: row.task_label,
+          dueDate: row.due_date,
+          status: row.status,
+          emailSubject: row.email_subject || '',
+          emailBody: row.email_body || '',
+          completedAt: row.completed_at || null,
+          createdAt: row.created_at,
+        }));
+        dispatch({ type: 'ADD_FOLLOW_UP_TASKS', payload: mappedTasks });
+      }
+    } catch (err) {
+      // Task creation failed (table may not exist yet) — tattoo is still completed
+      console.warn('Follow-up task creation skipped:', err?.message);
+    }
 
     return mapped;
   };

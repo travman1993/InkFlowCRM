@@ -1,22 +1,31 @@
 import { useState } from 'react';
 import DashboardLayout from '../components/layout/DashboardLayout';
 import { useStudio } from '../hooks/useStudio';
+import { useFollowUpTasks } from '../hooks/useFollowUpTasks';
+import { useAuth } from '../context/AuthContext';
 import StudioOverviewTab from '../components/studio/StudioOverviewTab';
 import StudioArtistsTab from '../components/studio/StudioArtistsTab';
 import StudioScheduleTab from '../components/studio/StudioScheduleTab';
 import StudioAnalyticsTab from '../components/studio/StudioAnalyticsTab';
-import { LayoutDashboard, Users, Calendar, BarChart3 } from 'lucide-react';
-
-const TABS = [
-  { id: 'overview',  label: 'Overview',  icon: LayoutDashboard },
-  { id: 'artists',   label: 'Artists',   icon: Users },
-  { id: 'schedule',  label: 'Schedule',  icon: Calendar },
-  { id: 'analytics', label: 'Analytics', icon: BarChart3 },
-];
+import TasksTab from '../components/tasks/TasksTab';
+import { LayoutDashboard, Users, Calendar, BarChart3, CheckSquare } from 'lucide-react';
 
 function StudioDashboard() {
   const studio = useStudio();
+  const { artist } = useAuth();
+  const { getUrgentCount } = useFollowUpTasks();
   const [activeTab, setActiveTab] = useState('overview');
+
+  const urgentCount = getUrgentCount();
+  const shopName = artist?.studio_name || '';
+
+  const TABS = [
+    { id: 'overview',  label: 'Overview',  icon: LayoutDashboard },
+    { id: 'artists',   label: 'Artists',   icon: Users },
+    { id: 'schedule',  label: 'Schedule',  icon: Calendar },
+    { id: 'analytics', label: 'Analytics', icon: BarChart3 },
+    { id: 'tasks',     label: 'Tasks',     icon: CheckSquare, badge: urgentCount },
+  ];
 
   return (
     <DashboardLayout>
@@ -38,6 +47,13 @@ function StudioDashboard() {
                 >
                   <tab.icon className="w-4 h-4" />
                   {tab.label}
+                  {tab.badge > 0 && (
+                    <span className={`flex items-center justify-center w-5 h-5 text-xs font-bold rounded-full ${
+                      activeTab === tab.id ? 'bg-white/20 text-white' : 'bg-accent-danger text-white'
+                    }`}>
+                      {tab.badge > 9 ? '9+' : tab.badge}
+                    </span>
+                  )}
                 </button>
               ))}
             </div>
@@ -67,6 +83,7 @@ function StudioDashboard() {
             {activeTab === 'artists'    && <StudioArtistsTab   studio={studio} onSwitchToArtists={() => setActiveTab('artists')} />}
             {activeTab === 'schedule'   && <StudioScheduleTab  studio={studio} />}
             {activeTab === 'analytics'  && <StudioAnalyticsTab studio={studio} />}
+            {activeTab === 'tasks'      && <TasksTab artistName={shopName} shopName={shopName} />}
           </>
         )}
       </div>
