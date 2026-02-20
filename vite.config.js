@@ -3,12 +3,16 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
-  optimizeDeps: {
-    include: ['react', 'react-dom', 'react/jsx-runtime']
-  },
   build: {
+    rollupOptions: {
+      external: [], // prevent React from being externalized
+    },
     commonjsOptions: {
-      include: [/node_modules/]
-    }
-  }
+      include: [/node_modules/],
+      transformMixedEsModules: true,
+    },
+  },
+  optimizeDeps: {
+    include: ['react', 'react-dom', 'react/jsx-runtime'],
+  },
 })
