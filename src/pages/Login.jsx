@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { supabase } from '../lib/supabase';
 import { Eye, EyeOff, ArrowLeft } from 'lucide-react';
 
 function Login() {
@@ -18,7 +19,7 @@ function Login() {
     setError('');
     setLoading(true);
 
-    const { error: signInError } = await signIn(email, password);
+    const { data, error: signInError } = await signIn(email, password);
 
     if (signInError) {
       setError(signInError.message === 'Invalid login credentials'
@@ -27,7 +28,13 @@ function Login() {
       );
       setLoading(false);
     } else {
-      navigate('/dashboard');
+      const { data: artistData } = await supabase
+        .from('artists')
+        .select('studio_name')
+        .eq('user_id', data.user.id)
+        .single();
+
+      navigate(artistData?.studio_name ? '/studio/dashboard' : '/dashboard');
     }
   };
 
