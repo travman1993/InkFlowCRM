@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { supabase } from '../lib/supabase';
 import { Eye, EyeOff, ArrowLeft, Check } from 'lucide-react';
 
 function Signup() {
@@ -49,7 +50,10 @@ function Signup() {
       return;
     }
 
-    // If auto-confirmed (dev mode), go straight to dashboard
+    // If auto-confirmed (dev mode), create subscription row and go to dashboard
+    if (data?.user) {
+      await supabase.from('subscriptions').insert({ artist_id: data.user.id });
+    }
     navigate('/dashboard');
   };
 

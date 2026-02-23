@@ -80,6 +80,9 @@ function StudioSignup() {
         return;
       }
 
+      // Create subscription row for trial
+      await supabase.from('subscriptions').insert({ artist_id: userId });
+
       navigate('/studio/dashboard');
       return;
     }

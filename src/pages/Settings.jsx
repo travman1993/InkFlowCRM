@@ -1,7 +1,10 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import DashboardLayout from '../components/layout/DashboardLayout';
 import { useArtistSettings } from '../hooks/useArtistSettings';
 import { useAuth } from '../context/AuthContext';
+import { deriveSubscriptionState } from '../hooks/useSubscription';
+import { supabase } from '../lib/supabase';
 import {
   Settings as SettingsIcon,
   User,
@@ -10,11 +13,25 @@ import {
   Save,
   CheckCircle,
   AlertCircle,
+  CreditCard,
+  ExternalLink,
+  Loader2,
 } from 'lucide-react';
+
+const FUNCTIONS_URL = import.meta.env.VITE_SUPABASE_FUNCTIONS_URL;
+
+const PLAN_LABELS = {
+  solo_monthly:   'Solo Artist · Monthly',
+  solo_yearly:    'Solo Artist · Yearly',
+  studio_monthly: 'Studio · Monthly',
+  studio_yearly:  'Studio · Yearly',
+};
 
 function Settings() {
   const { settings, updateSettings } = useArtistSettings();
-  const { signOut } = useAuth();
+  const { signOut, subscription, user } = useAuth();
+  const [billingLoading, setBillingLoading] = useState(false);
+  const [billingError, setBillingError] = useState('');
 
   const [formData, setFormData] = useState({
     name: '',
@@ -73,6 +90,32 @@ function Settings() {
   const handleSignOut = async () => {
     await signOut();
   };
+
+  const handleManageBilling = async () => {
+    setBillingError('');
+    setBillingLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+
+      const res = await fetch(`${FUNCTIONS_URL}/create-portal-session`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.url) throw new Error(data.error || 'Failed to open billing portal');
+      window.location.href = data.url;
+    } catch (err) {
+      setBillingError(err.message);
+      setBillingLoading(false);
+    }
+  };
+
+  const subState = deriveSubscriptionState(subscription);
 
   return (
     <DashboardLayout>
@@ -257,6 +300,89 @@ function Settings() {
                   </div>
                 </div>
               </div>
+            )}
+          </div>
+
+          {/* Billing Section */}
+          <div className="bg-bg-secondary rounded-xl border border-border-primary p-6">
+            <div className="flex items-center gap-3 mb-6">
+              <CreditCard className="w-6 h-6 text-accent-primary" />
+              <h2 className="text-xl font-bold">Billing</h2>
+            </div>
+
+            {subscription ? (
+              <div className="space-y-4">
+                <div className="flex flex-wrap gap-4">
+                  <div className="flex-1 min-w-[160px] p-4 bg-bg-primary rounded-lg border border-border-primary">
+                    <p className="text-xs text-text-tertiary mb-1 uppercase tracking-wide font-semibold">Plan</p>
+                    <p className="font-semibold">
+                      {subscription.plan_type
+                        ? PLAN_LABELS[subscription.plan_type] ?? subscription.plan_type
+                        : 'Free Trial'}
+                    </p>
+                  </div>
+                  <div className="flex-1 min-w-[160px] p-4 bg-bg-primary rounded-lg border border-border-primary">
+                    <p className="text-xs text-text-tertiary mb-1 uppercase tracking-wide font-semibold">Status</p>
+                    <p className={`font-semibold capitalize ${
+                      subState.isActive    ? 'text-accent-success' :
+                      subState.isTrialing  ? 'text-accent-warning' :
+                      'text-accent-danger'
+                    }`}>
+                      {subState.isTrialing
+                        ? `Trial · ${subState.trialDaysLeft}d left`
+                        : subscription.status}
+                    </p>
+                  </div>
+                  {subscription.current_period_end && (
+                    <div className="flex-1 min-w-[160px] p-4 bg-bg-primary rounded-lg border border-border-primary">
+                      <p className="text-xs text-text-tertiary mb-1 uppercase tracking-wide font-semibold">Renews</p>
+                      <p className="font-semibold">
+                        {new Date(subscription.current_period_end).toLocaleDateString()}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {billingError && (
+                  <p className="text-sm text-accent-danger">{billingError}</p>
+                )}
+
+                {subState.isActive ? (
+                  <button
+                    onClick={handleManageBilling}
+                    disabled={billingLoading}
+                    className="flex items-center gap-2 px-5 py-2.5 bg-bg-primary border border-border-primary hover:border-accent-primary rounded-lg font-semibold text-sm transition disabled:opacity-50"
+                  >
+                    {billingLoading ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <ExternalLink className="w-4 h-4" />
+                    )}
+                    Manage Billing
+                  </button>
+                ) : subState.isTrialing ? (
+                  <div className="flex items-center gap-3">
+                    <Link
+                      to="/pricing"
+                      className="flex items-center gap-2 px-5 py-2.5 bg-accent-primary hover:bg-teal-600 rounded-lg font-semibold text-sm transition"
+                    >
+                      Choose a Plan
+                    </Link>
+                    <p className="text-sm text-text-secondary">
+                      Trial ends {new Date(subscription.trial_end).toLocaleDateString()}
+                    </p>
+                  </div>
+                ) : (
+                  <Link
+                    to="/pricing"
+                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-accent-primary hover:bg-teal-600 rounded-lg font-semibold text-sm transition"
+                  >
+                    Reactivate Subscription
+                  </Link>
+                )}
+              </div>
+            ) : (
+              <p className="text-text-secondary text-sm">Loading billing information...</p>
             )}
           </div>
 

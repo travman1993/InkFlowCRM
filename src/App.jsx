@@ -1,6 +1,8 @@
 import { lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Landing from './pages/Landing';
+import Pricing from './pages/Pricing';
+import CheckoutSuccess from './pages/CheckoutSuccess';
 import Dashboard from './pages/Dashboard';
 import StudioDashboard from './pages/StudioDashboard';
 import Clients from './pages/Clients';
@@ -38,6 +40,8 @@ function App() {
       <Routes>
         {/* Public pages */}
         <Route path="/" element={<Landing />} />
+        <Route path="/pricing" element={<Pricing />} />
+        <Route path="/checkout/success" element={<CheckoutSuccess />} />
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
         <Route path="/studio/signup" element={<StudioSignup />} />

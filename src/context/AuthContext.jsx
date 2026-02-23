@@ -6,6 +6,7 @@ const AuthContext = createContext(null);
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [artist, setArtist] = useState(null);
+  const [subscription, setSubscription] = useState(null);
   const [loading, setLoading] = useState(true);
 
   // Fetch the artist profile for the logged-in user
@@ -24,18 +25,40 @@ export function AuthProvider({ children }) {
     }
   };
 
+  // Fetch the subscription row for the logged-in user
+  const fetchSubscription = async (userId) => {
+    try {
+      const { data, error } = await supabase
+        .from('subscriptions')
+        .select('*')
+        .eq('artist_id', userId)
+        .single();
+
+      if (error) return null;
+      return data;
+    } catch (err) {
+      return null;
+    }
+  };
+
   useEffect(() => {
     let isMounted = true;
 
-    // 1. Get the initial session and fetch artist
+    // 1. Get the initial session and fetch artist + subscription
     const initAuth = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
 
         if (session?.user && isMounted) {
           setUser(session.user);
-          const artistData = await fetchArtist(session.user.id);
-          if (isMounted) setArtist(artistData);
+          const [artistData, subData] = await Promise.all([
+            fetchArtist(session.user.id),
+            fetchSubscription(session.user.id),
+          ]);
+          if (isMounted) {
+            setArtist(artistData);
+            setSubscription(subData);
+          }
         }
       } catch (err) {
         // session load failed, user stays logged out
@@ -49,13 +72,14 @@ export function AuthProvider({ children }) {
     // 2. Listen for auth changes — but DON'T make DB calls inside the callback.
     //    Instead, just update user state. The DB fetch happens via the
     //    separate useEffect below that watches `user`.
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+    const { data: { subscription: authSub } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
         if (session?.user) {
           setUser(session.user);
         } else {
           setUser(null);
           setArtist(null);
+          setSubscription(null);
           setLoading(false);
         }
       }
@@ -63,28 +87,32 @@ export function AuthProvider({ children }) {
 
     return () => {
       isMounted = false;
-      subscription.unsubscribe();
+      authSub.unsubscribe();
     };
   }, []);
 
-  // 3. Whenever `user` changes (from login/logout), fetch artist separately.
+  // 3. Whenever `user` changes (from login/logout), fetch artist + subscription separately.
   //    This avoids the Supabase deadlock from querying inside onAuthStateChange.
   useEffect(() => {
     if (!user) return;
 
     let cancelled = false;
 
-    const loadArtist = async () => {
-      const artistData = await fetchArtist(user.id);
+    const loadProfile = async () => {
+      const [artistData, subData] = await Promise.all([
+        fetchArtist(user.id),
+        fetchSubscription(user.id),
+      ]);
       if (!cancelled) {
         setArtist(artistData);
+        setSubscription(subData);
         setLoading(false);
       }
     };
 
-    // Only fetch if we don't already have the artist
+    // Only fetch if we don't already have the profile
     if (!artist) {
-      loadArtist();
+      loadProfile();
     }
 
     return () => { cancelled = true; };
@@ -113,6 +141,7 @@ export function AuthProvider({ children }) {
     if (!error) {
       setUser(null);
       setArtist(null);
+      setSubscription(null);
     }
     return { error };
   };
@@ -140,15 +169,24 @@ export function AuthProvider({ children }) {
     return { data, error };
   };
 
+  // Refresh subscription from DB (called after checkout success)
+  const refreshSubscription = async () => {
+    if (!user) return;
+    const subData = await fetchSubscription(user.id);
+    setSubscription(subData);
+  };
+
   const value = {
     user,
     artist,
+    subscription,
     loading,
     signUp,
     signIn,
     signOut,
     resetPassword,
     updateArtist,
+    refreshSubscription,
   };
 
   return (

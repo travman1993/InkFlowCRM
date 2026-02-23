@@ -27,6 +27,7 @@ import {
 function Landing() {
   const [selectedPlan, setSelectedPlan] = useState('solo');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [billingCycle, setBillingCycle] = useState('monthly');
 
   // ── Global market stats ────────────────────────────────────────────────────
   const marketStats = [
@@ -248,6 +249,7 @@ function Landing() {
         'Automated 5-touch follow-up emails',
         'Studio multi-artist management',
         'Revenue analytics & reporting',
+        'Monthly & yearly subscription billing',
       ],
     },
     {
@@ -257,7 +259,6 @@ function Landing() {
         'Mobile app (iOS & Android)',
         'SMS appointment reminders',
         'Digital consent & waiver forms',
-        'Stripe payment processing',
         'Appointment confirmation emails',
       ],
     },
@@ -559,9 +560,40 @@ function Landing() {
       {/* ── Pricing ─────────────────────────────────────────────────────────── */}
       <section id="pricing" className="py-12 md:py-20 px-4">
         <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-12 md:mb-16">
+          <div className="text-center mb-8 md:mb-10">
             <h2 className="text-3xl md:text-4xl font-bold mb-3 md:mb-4">Simple, Transparent Pricing</h2>
             <p className="text-lg md:text-xl text-text-secondary">Same price worldwide. No hidden fees. No surprises.</p>
+          </div>
+
+          {/* Billing cycle toggle */}
+          <div className="flex items-center justify-center gap-3 mb-10">
+            <button
+              onClick={() => setBillingCycle('monthly')}
+              className={`px-5 py-2 rounded-full text-sm font-semibold transition ${
+                billingCycle === 'monthly'
+                  ? 'bg-accent-primary text-white'
+                  : 'text-text-secondary hover:text-text-primary'
+              }`}
+            >
+              Monthly
+            </button>
+            <button
+              onClick={() => setBillingCycle('yearly')}
+              className={`px-5 py-2 rounded-full text-sm font-semibold transition flex items-center gap-2 ${
+                billingCycle === 'yearly'
+                  ? 'bg-accent-primary text-white'
+                  : 'text-text-secondary hover:text-text-primary'
+              }`}
+            >
+              Yearly
+              <span className={`text-xs px-1.5 py-0.5 rounded-full font-bold ${
+                billingCycle === 'yearly'
+                  ? 'bg-white/20 text-white'
+                  : 'bg-accent-success/20 text-accent-success'
+              }`}>
+                Save 10%
+              </span>
+            </button>
           </div>
 
           <div className="grid md:grid-cols-2 gap-6 md:gap-8 max-w-5xl mx-auto">
@@ -572,10 +604,15 @@ function Landing() {
             >
               <div className="mb-6">
                 <h3 className="text-xl md:text-2xl font-bold mb-2">Solo Artist</h3>
-                <div className="flex items-baseline mb-2">
-                  <span className="text-4xl md:text-5xl font-bold">$29</span>
+                <div className="flex items-baseline mb-1">
+                  <span className="text-4xl md:text-5xl font-bold">
+                    {billingCycle === 'monthly' ? '$29' : '$26.10'}
+                  </span>
                   <span className="text-text-secondary ml-2">/month</span>
                 </div>
+                {billingCycle === 'yearly' && (
+                  <p className="text-xs text-text-secondary mb-1">Billed $313.20/year · save $34.80</p>
+                )}
                 <p className="text-sm md:text-base text-text-secondary">For independent tattoo artists</p>
               </div>
               <ul className="space-y-3 mb-6 md:mb-8">
@@ -587,7 +624,7 @@ function Landing() {
                 ))}
               </ul>
               <Link to="/signup" className="block w-full py-3 bg-accent-primary hover:bg-teal-600 rounded-lg font-semibold text-center transition">
-                Get Started Free
+                Start Free Trial
               </Link>
             </div>
 
@@ -601,10 +638,15 @@ function Landing() {
               </div>
               <div className="mb-6">
                 <h3 className="text-xl md:text-2xl font-bold mb-2">Studio</h3>
-                <div className="flex items-baseline mb-2">
-                  <span className="text-4xl md:text-5xl font-bold">$99</span>
+                <div className="flex items-baseline mb-1">
+                  <span className="text-4xl md:text-5xl font-bold">
+                    {billingCycle === 'monthly' ? '$99' : '$89.10'}
+                  </span>
                   <span className="text-text-secondary ml-2">/month</span>
                 </div>
+                {billingCycle === 'yearly' && (
+                  <p className="text-xs text-text-secondary mb-1">Billed $1,069.20/year · save $118.80</p>
+                )}
                 <p className="text-sm md:text-base text-text-secondary">For multi-artist tattoo studios</p>
               </div>
               <ul className="space-y-3 mb-6 md:mb-8">
@@ -618,7 +660,7 @@ function Landing() {
                 ))}
               </ul>
               <Link to="/studio/signup" className="block w-full py-3 bg-accent-primary hover:bg-teal-600 rounded-lg font-semibold text-center transition">
-                Get Started Free
+                Start Free Trial
               </Link>
             </div>
           </div>

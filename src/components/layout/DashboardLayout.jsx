@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import TrialBanner from '../TrialBanner';
 import {
   Calendar,
   Users,
@@ -284,7 +285,8 @@ function DashboardLayout({ children }) {
       </div>
 
       {/* ── Main Content ────────────────────────────────────────────────── */}
-      <main className="flex-1 lg:ml-0 mt-14 lg:mt-0">
+      <main className="flex-1 lg:ml-0 mt-14 lg:mt-0 flex flex-col">
+        <TrialBanner />
         {loadError ? (
           <div className="flex items-center justify-center min-h-screen p-6">
             <div className="bg-bg-secondary border border-accent-danger/30 rounded-xl p-8 max-w-md w-full text-center">
@@ -298,11 +300,11 @@ function DashboardLayout({ children }) {
             </div>
           </div>
         ) : !loaded ? (
-          <div className="flex items-center justify-center min-h-screen">
+          <div className="flex items-center justify-center flex-1">
             <div className="w-8 h-8 border-2 border-accent-primary border-t-transparent rounded-full animate-spin" />
           </div>
         ) : (
-          children
+          <div className="flex-1">{children}</div>
         )}
       </main>
     </div>
