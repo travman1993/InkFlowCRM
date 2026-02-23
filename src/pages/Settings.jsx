@@ -106,8 +106,13 @@ function Settings() {
         },
       });
 
-      const data = await res.json();
-      if (!res.ok || !data.url) throw new Error(data.error || 'Failed to open billing portal');
+      let data = {};
+      try {
+        data = await res.json();
+      } catch {
+        throw new Error(`Edge function not reachable (HTTP ${res.status}). Make sure the Supabase functions are deployed.`);
+      }
+      if (!res.ok || !data.url) throw new Error(data.error || `Server error (${res.status})`);
       window.location.href = data.url;
     } catch (err) {
       setBillingError(err.message);
