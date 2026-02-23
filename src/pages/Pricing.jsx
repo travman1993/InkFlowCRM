@@ -47,6 +47,12 @@ function Pricing() {
 
   const isStudio = Boolean(artist?.studio_name);
 
+  // When logged in, only show the plan matching the account type.
+  // When not logged in (public visitor), show both so they can compare.
+  const visiblePlans = user
+    ? Object.entries(PLANS).filter(([key]) => isStudio ? key === 'studio' : key === 'solo')
+    : Object.entries(PLANS);
+
   const handleSubscribe = async (planType) => {
     if (!user) return;
     setError('');
@@ -143,8 +149,8 @@ function Pricing() {
         )}
 
         {/* Plan cards */}
-        <div className="grid md:grid-cols-2 gap-6 max-w-3xl mx-auto">
-          {Object.entries(PLANS).map(([key, plan]) => {
+        <div className={`grid gap-6 mx-auto ${visiblePlans.length === 1 ? 'max-w-md' : 'md:grid-cols-2 max-w-3xl'}`}>
+          {visiblePlans.map(([key, plan]) => {
             const tier = plan[billing];
             const isLoading = loadingPlan === tier.planType;
 
