@@ -18,7 +18,6 @@ import {
   Loader2,
 } from 'lucide-react';
 
-const FUNCTIONS_URL = import.meta.env.VITE_SUPABASE_FUNCTIONS_URL;
 
 const PLAN_LABELS = {
   solo_monthly:   'Solo Artist · Monthly',
@@ -95,24 +94,12 @@ function Settings() {
     setBillingError('');
     setBillingLoading(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
-
-      const res = await fetch(`${FUNCTIONS_URL}/create-portal-session`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
+      const { data, error } = await supabase.functions.invoke('create-portal-session', {
+        body: {},
       });
 
-      let data = {};
-      try {
-        data = await res.json();
-      } catch {
-        throw new Error(`Edge function not reachable (HTTP ${res.status}). Make sure the Supabase functions are deployed.`);
-      }
-      if (!res.ok || !data.url) throw new Error(data.error || `Server error (${res.status})`);
+      if (error) throw new Error(error.message || 'Failed to open billing portal');
+      if (!data?.url) throw new Error('No portal URL returned');
       window.location.href = data.url;
     } catch (err) {
       setBillingError(err.message);

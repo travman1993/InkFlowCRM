@@ -4,8 +4,6 @@ import { Check, ArrowLeft, Zap, Building2, User, Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 
-const FUNCTIONS_URL = import.meta.env.VITE_SUPABASE_FUNCTIONS_URL;
-
 const PLANS = {
   solo: {
     name: 'Solo Artist',
@@ -55,31 +53,12 @@ function Pricing() {
     setLoadingPlan(planType);
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
-
-      const res = await fetch(`${FUNCTIONS_URL}/create-checkout-session`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          plan_type: planType,
-          email: user.email,
-        }),
+      const { data, error } = await supabase.functions.invoke('create-checkout-session', {
+        body: { plan_type: planType, email: user.email },
       });
 
-      let data = {};
-      try {
-        data = await res.json();
-      } catch {
-        throw new Error(`Edge function not reachable (HTTP ${res.status}). Make sure the Supabase functions are deployed.`);
-      }
-
-      if (!res.ok || !data.url) {
-        throw new Error(data.error || `Server error (${res.status})`);
-      }
+      if (error) throw new Error(error.message || 'Failed to create checkout session');
+      if (!data?.url) throw new Error('No checkout URL returned');
 
       window.location.href = data.url;
     } catch (err) {
