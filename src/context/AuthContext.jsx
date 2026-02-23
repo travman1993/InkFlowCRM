@@ -44,25 +44,19 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     let isMounted = true;
 
-    // 1. Get the initial session and fetch artist + subscription
+    // 1. Get the initial session and set user — profile fetch is handled
+    //    by the useEffect([user]) below so there's a single code path for both
+    //    initial load and account switches.
     const initAuth = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
-
         if (session?.user && isMounted) {
           setUser(session.user);
-          const [artistData, subData] = await Promise.all([
-            fetchArtist(session.user.id),
-            fetchSubscription(session.user.id),
-          ]);
-          if (isMounted) {
-            setArtist(artistData);
-            setSubscription(subData);
-          }
+          // loading stays true until useEffect([user]) completes the fetch
+        } else {
+          if (isMounted) setLoading(false);
         }
       } catch (err) {
-        // session load failed, user stays logged out
-      } finally {
         if (isMounted) setLoading(false);
       }
     };
@@ -110,10 +104,9 @@ export function AuthProvider({ children }) {
       }
     };
 
-    // Only fetch if we don't already have the profile
-    if (!artist) {
-      loadProfile();
-    }
+    // Always re-fetch when user changes — this ensures that if a different
+    // account logs in, we never carry over the previous user's profile.
+    loadProfile();
 
     return () => { cancelled = true; };
   }, [user]);

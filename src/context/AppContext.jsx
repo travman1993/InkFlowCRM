@@ -231,6 +231,10 @@ function appReducer(state, action) {
       };
     }
 
+    // ---------- RESET (on logout / user switch) ----------
+    case 'RESET':
+      return initialState;
+
     default:
       return state;
   }
@@ -345,9 +349,14 @@ export function AppProvider({ children }) {
   const [state, dispatch] = useReducer(appReducer, initialState);
   const { artist } = useAuth();
 
-  // Load all data when artist profile is available
+  // Load all data when artist profile is available.
+  // When artist becomes null (logout), reset state immediately so stale
+  // data from the previous user is never shown to the next logged-in user.
   useEffect(() => {
-    if (!artist) return;
+    if (!artist) {
+      dispatch({ type: 'RESET' });
+      return;
+    }
 
     const loadData = async () => {
       try {
