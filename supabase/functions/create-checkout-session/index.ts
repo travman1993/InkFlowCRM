@@ -72,7 +72,16 @@ Deno.serve(async (req: Request) => {
 
     let customerId = sub?.stripe_customer_id;
 
-    // Create Stripe customer if not yet created
+    // Verify the stored customer still exists in Stripe (handles manual deletions or test/live switches)
+    if (customerId) {
+      try {
+        await stripe.customers.retrieve(customerId);
+      } catch {
+        customerId = null;
+      }
+    }
+
+    // Create Stripe customer if missing or stale
     if (!customerId) {
       const customer = await stripe.customers.create({
         email: email || user.email,
@@ -80,7 +89,7 @@ Deno.serve(async (req: Request) => {
       });
       customerId = customer.id;
 
-      // Save customer ID
+      // Save new customer ID
       await supabaseAdmin
         .from('subscriptions')
         .update({ stripe_customer_id: customerId })
