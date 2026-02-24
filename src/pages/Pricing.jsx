@@ -63,7 +63,14 @@ function Pricing() {
         body: { plan_type: planType, email: user.email },
       });
 
-      if (error) throw new Error(error.message || 'Failed to create checkout session');
+      if (error) {
+        let msg = error.message || 'Failed to create checkout session';
+        try {
+          const body = await error.context.json();
+          if (body?.error) msg = body.error;
+        } catch {}
+        throw new Error(msg);
+      }
       if (!data?.url) throw new Error('No checkout URL returned');
 
       window.location.href = data.url;
