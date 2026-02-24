@@ -14,6 +14,7 @@ function StudioOverviewTab({ studio }) {
   const todayStr = toDateStr(now);
 
   const startOfMonth = toDateStr(new Date(now.getFullYear(), now.getMonth(), 1));
+  const endOfMonth   = toDateStr(new Date(now.getFullYear(), now.getMonth() + 1, 0));
 
   const startOfWeek = new Date(now);
   startOfWeek.setDate(now.getDate() - now.getDay());
@@ -24,18 +25,20 @@ function StudioOverviewTab({ studio }) {
 
   const revenueThisMonth = useMemo(() =>
     studio.tattoos
-      .filter(t => t.date >= startOfMonth && t.date <= todayStr)
+      .filter(t => t.date >= startOfMonth && t.date <= endOfMonth)
       .reduce((sum, t) => sum + t.price, 0),
-    [studio.tattoos, startOfMonth, todayStr]
+    [studio.tattoos, startOfMonth, endOfMonth]
   );
 
   const tattoosThisMonth = useMemo(() =>
-    studio.tattoos.filter(t => t.date >= startOfMonth && t.date <= todayStr).length,
-    [studio.tattoos, startOfMonth, todayStr]
+    studio.tattoos.filter(t => t.date >= startOfMonth && t.date <= endOfMonth).length,
+    [studio.tattoos, startOfMonth, endOfMonth]
   );
 
   const appointmentsThisWeek = useMemo(() =>
-    studio.appointments.filter(a => a.date >= startOfWeekStr && a.date <= endOfWeekStr).length,
+    studio.appointments.filter(a =>
+      a.date >= startOfWeekStr && a.date <= endOfWeekStr && a.status !== 'completed'
+    ).length,
     [studio.appointments, startOfWeekStr, endOfWeekStr]
   );
 

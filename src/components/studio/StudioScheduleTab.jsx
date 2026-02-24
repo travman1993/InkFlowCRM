@@ -2,8 +2,10 @@ import StudioMonthView from './StudioMonthView';
 
 function StudioScheduleTab({ studio }) {
   const handleCompleteAppointment = async (appointmentId, tattooData) => {
-    await studio.addTattooRecord(tattooData);
-    await studio.updateAppointment(appointmentId, { status: 'completed' });
+    const result = await studio.addTattooRecord(tattooData);
+    if (result) {
+      await studio.updateAppointment(appointmentId, { status: 'completed' });
+    }
   };
 
   return (
